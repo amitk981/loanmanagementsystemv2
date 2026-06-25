@@ -55,6 +55,49 @@ export const members: Member[] = [
     activeStatus: 'inactive', kycStatus: 'expired', supplyYears: 1,
     defaultStatus: 'past_default', registeredOn: '2018-11-03', currentExposure: 45000,
   },
+  {
+    id: 'm006', memberType: 'individual', name: 'Sanjay Pawar', folioNumber: 'FO-0412',
+    sharesHeld: 600, shareMode: 'demat', aadhaar: '****-****-1122', pan: 'ABCDE9999F',
+    mobile: '9822001122', email: 'sanjay.pawar@gmail.com',
+    address: 'Plot 4, Satpur, Nashik, Maharashtra 422 007',
+    activeStatus: 'active', kycStatus: 'verified', supplyYears: 6,
+    subsidiaryLinkage: 'Sahyadri Agro',
+    defaultStatus: 'no_default', registeredOn: '2017-05-11', currentExposure: 0,
+  },
+  {
+    id: 'm007', memberType: 'producer_institution', name: 'Nashik Grape Growers Coop', folioNumber: 'FO-0888',
+    sharesHeld: 5000, shareMode: 'demat', aadhaar: 'N/A', pan: 'ZYXWV1111Q',
+    mobile: '9900001111', email: 'contact@nggc.in',
+    address: 'Grape City, Nashik, Maharashtra 422 001',
+    activeStatus: 'active', kycStatus: 'verified', supplyYears: 8,
+    subsidiaryLinkage: 'Sahyadri Farms',
+    defaultStatus: 'no_default', registeredOn: '2015-02-14', currentExposure: 1500000,
+  },
+  {
+    id: 'm008', memberType: 'individual', name: 'Anjali Wagh', folioNumber: 'FO-0555',
+    sharesHeld: 150, shareMode: 'physical', aadhaar: '****-****-5566', pan: 'QWERT2222Y',
+    mobile: '8877665544', email: 'anjali.wagh@gmail.com',
+    address: 'Lane 2, Ozar, Nashik, Maharashtra 422 206',
+    activeStatus: 'under_review', kycStatus: 'pending', supplyYears: 1,
+    defaultStatus: 'no_default', registeredOn: '2023-11-01', currentExposure: 0,
+  },
+  {
+    id: 'm009', memberType: 'individual', name: 'Manoj Jadhav', folioNumber: 'FO-0612',
+    sharesHeld: 800, shareMode: 'demat', aadhaar: '****-****-3344', pan: 'ASDFG3333H',
+    mobile: '7766554433', email: 'manoj.jadhav@yahoo.com',
+    address: 'Farm 9, Peth, Nashik, Maharashtra 422 208',
+    activeStatus: 'active', kycStatus: 'verified', supplyYears: 4,
+    defaultStatus: 'current_default', registeredOn: '2020-08-20', currentExposure: 250000,
+  },
+  {
+    id: 'm010', memberType: 'fpc', name: 'Green Valley FPC', folioNumber: 'FO-0999',
+    sharesHeld: 1200, shareMode: 'physical', aadhaar: 'N/A', pan: 'LKJHG4444M',
+    mobile: '9898989898', email: 'info@greenvalleyfpc.in',
+    address: 'Main Road, Niphad, Nashik, Maharashtra 422 303',
+    activeStatus: 'active', kycStatus: 'verified', supplyYears: 3,
+    subsidiaryLinkage: 'Sahyadri Post Harvest',
+    defaultStatus: 'no_default', registeredOn: '2021-03-10', currentExposure: 0,
+  }
 ];
 
 export const loanApplications: LoanApplication[] = [
@@ -123,6 +166,70 @@ export const loanApplications: LoanApplication[] = [
     riskRating: 'low', sapCustomerCode: 'SAP-230035',
     bankAccount: '****1234', bankIfsc: 'RATN0000001',
   },
+  {
+    id: 'app006', applicationNumber: 'LO00000045', applicationDate: '2026-06-15',
+    memberId: 'm006', memberName: 'Sanjay Pawar', memberType: 'individual',
+    nomineeId: 'nom006', requestedAmount: 500000, purpose: 'crop_production',
+    loanType: 'short_term', tenure: 12, sharesHeld: 600, shareMode: 'demat',
+    landAreaAcres: 5.5, status: 'appraisal_pending', documentationStatus: 'not_started',
+    disbursementStatus: 'pending_documentation', eligibleAmount: 550000,
+    shareholdingLimit: 720000, landBasedLimit: 110000, isException: false,
+    currentOwner: 'Deputy Manager Finance', currentOwnerRole: 'deputy_manager_finance',
+    submittedAt: '2026-06-15T09:00:00Z', referenceGeneratedAt: '2026-06-15T10:00:00Z',
+    sanctionDecision: 'pending', riskRating: 'low', tatDaysRemaining: 2,
+  },
+  {
+    id: 'app007', applicationNumber: 'LO00000046', applicationDate: '2026-06-16',
+    memberId: 'm007', memberName: 'Nashik Grape Growers Coop', memberType: 'fpc',
+    nomineeId: 'nom007', requestedAmount: 1200000, purpose: 'agriculture_activity',
+    loanType: 'long_term', tenure: 36, sharesHeld: 5000, shareMode: 'demat',
+    landAreaAcres: 25, status: 'incomplete', documentationStatus: 'not_started',
+    disbursementStatus: 'pending_documentation', eligibleAmount: 1200000,
+    shareholdingLimit: 6000000, landBasedLimit: 500000, isException: true,
+    exceptionReason: 'Requested amount exceeds ₹5,00,000 threshold',
+    currentOwner: 'Credit Assessment', currentOwnerRole: 'credit_manager',
+    submittedAt: '2026-06-16T11:00:00Z',
+    sanctionDecision: 'pending', riskRating: 'medium', tatDaysRemaining: 3,
+  },
+  {
+    id: 'app008', applicationNumber: 'LO00000047', applicationDate: '2026-06-18',
+    memberId: 'm008', memberName: 'Anjali Wagh', memberType: 'individual',
+    nomineeId: 'nom008', requestedAmount: 100000, purpose: 'crop_production',
+    loanType: 'short_term', tenure: 12, sharesHeld: 150, shareMode: 'physical',
+    landAreaAcres: 1.5, status: 'draft', documentationStatus: 'not_started',
+    disbursementStatus: 'pending_documentation', eligibleAmount: 0,
+    shareholdingLimit: 180000, landBasedLimit: 30000, isException: false,
+    currentOwner: 'Field Officer', currentOwnerRole: 'credit_manager',
+    submittedAt: '',
+    sanctionDecision: 'pending', riskRating: 'low', tatDaysRemaining: 4,
+  },
+  {
+    id: 'app009', applicationNumber: 'LO00000038', applicationDate: '2026-05-10',
+    memberId: 'm009', memberName: 'Manoj Jadhav', memberType: 'individual',
+    nomineeId: 'nom009', requestedAmount: 300000, purpose: 'allied_activity',
+    loanType: 'long_term', tenure: 24, sharesHeld: 800, shareMode: 'demat',
+    landAreaAcres: 8.0, status: 'sanctioned', documentationStatus: 'pending_signature',
+    disbursementStatus: 'pending_documentation', eligibleAmount: 300000,
+    shareholdingLimit: 960000, landBasedLimit: 160000, isException: false,
+    currentOwner: 'Company Secretary', currentOwnerRole: 'company_secretary',
+    submittedAt: '2026-05-10T10:00:00Z', referenceGeneratedAt: '2026-05-10T12:00:00Z',
+    sanctionedAt: '2026-05-15T14:00:00Z', sanctionDecision: 'approved',
+    riskRating: 'medium', sapCustomerCode: 'SAP-240038',
+  },
+  {
+    id: 'app010', applicationNumber: 'LO00000030', applicationDate: '2026-03-05',
+    memberId: 'm010', memberName: 'Green Valley FPC', memberType: 'fpc',
+    nomineeId: 'nom010', requestedAmount: 400000, purpose: 'crop_production',
+    loanType: 'short_term', tenure: 12, sharesHeld: 1200, shareMode: 'physical',
+    landAreaAcres: 10.0, status: 'sanctioned', documentationStatus: 'complete',
+    disbursementStatus: 'pending_cfc_approval', eligibleAmount: 400000,
+    shareholdingLimit: 1440000, landBasedLimit: 200000, isException: false,
+    currentOwner: 'CFC', currentOwnerRole: 'cfc',
+    submittedAt: '2026-03-05T09:00:00Z', referenceGeneratedAt: '2026-03-05T11:00:00Z',
+    sanctionedAt: '2026-03-10T16:00:00Z', sanctionDecision: 'approved',
+    riskRating: 'low', sapCustomerCode: 'SAP-240030',
+    bankAccount: '****9999', bankIfsc: 'HDFC0000002',
+  },
 ];
 
 export const loanAccounts: LoanAccount[] = [
@@ -154,6 +261,33 @@ export const loanAccounts: LoanAccount[] = [
     gracePeriodEnd: '2026-06-10', lastRepaymentDate: '2024-12-01',
     lastRepaymentAmount: 10000, sapCustomerCode: 'SAP-210019',
   },
+  {
+    id: 'ln004', applicationId: 'app011', applicationNumber: 'LO00000015',
+    accountNumber: 'LN-2024-000015', memberId: 'm009', memberName: 'Manoj Jadhav',
+    memberType: 'individual', sanctionedAmount: 250000, disbursedAmount: 250000,
+    outstandingPrincipal: 250000, accruedInterest: 45000, interestRate: 14.0,
+    loanType: 'long_term', disbursementDate: '2024-01-05', repaymentDueDate: '2026-01-05',
+    status: 'recovery_in_progress', dpd: 165, dpdBucket: '91_365',
+    lastRepaymentDate: '2025-06-01', lastRepaymentAmount: 20000, sapCustomerCode: 'SAP-210015',
+  },
+  {
+    id: 'ln005', applicationId: 'app012', applicationNumber: 'LO00000010',
+    accountNumber: 'LN-2023-000010', memberId: 'm003', memberName: 'Kisan Samruddhi FPC Ltd.',
+    memberType: 'fpc', sanctionedAmount: 500000, disbursedAmount: 500000,
+    outstandingPrincipal: 0, accruedInterest: 0, interestRate: 11.5,
+    loanType: 'long_term', disbursementDate: '2023-05-20', repaymentDueDate: '2025-05-20',
+    status: 'closed', dpd: 0, dpdBucket: '0_30', lastRepaymentDate: '2025-05-15',
+    lastRepaymentAmount: 500000, sapCustomerCode: 'SAP-200010',
+  },
+  {
+    id: 'ln006', applicationId: 'app013', applicationNumber: 'LO00000022',
+    accountNumber: 'LN-2024-000022', memberId: 'm007', memberName: 'Nashik Grape Growers Coop',
+    memberType: 'producer_institution', sanctionedAmount: 1500000, disbursedAmount: 1500000,
+    outstandingPrincipal: 1000000, accruedInterest: 85000, interestRate: 11.0,
+    loanType: 'long_term', disbursementDate: '2024-08-12', repaymentDueDate: '2027-08-12',
+    status: 'active', dpd: 0, dpdBucket: '0_30', lastRepaymentDate: '2025-08-10',
+    lastRepaymentAmount: 500000, sapCustomerCode: 'SAP-210022',
+  },
 ];
 
 export const repaymentRecords: RepaymentRecord[] = [
@@ -169,9 +303,20 @@ export const repaymentRecords: RepaymentRecord[] = [
     channel: 'subsidiary_deduction', subsidiaryName: 'Sahyadri Farms Post Harvest Care Ltd.',
     bankReference: 'UTR20241201005678', sapEntryStatus: 'posted',
   },
+  {
+    id: 'rep003', loanAccountId: 'ln005', receiptDate: '2025-05-15',
+    amount: 500000, principalAllocation: 500000, interestAllocation: 55000,
+    channel: 'direct_rtgs', bankReference: 'UTR20250515009999',
+    sapEntryStatus: 'posted', postedBy: 'Accounts Team',
+  },
+  {
+    id: 'rep004', loanAccountId: 'ln006', receiptDate: '2025-08-10',
+    amount: 500000, principalAllocation: 500000, interestAllocation: 165000,
+    channel: 'subsidiary_deduction', subsidiaryName: 'Sahyadri Farms',
+    bankReference: 'UTR20250810008888', sapEntryStatus: 'posted',
+  }
 ];
 
-// Alias export for Borrower360
 export const repayments = repaymentRecords;
 
 export const documents: DocumentRecord[] = [
@@ -185,6 +330,9 @@ export const documents: DocumentRecord[] = [
   { id: 'd008', applicationId: 'app004', documentType: 'loan_agreement', requiredFlag: 'mandatory', status: 'pending_upload', version: 1, stampStatus: 'pending', notarisationStatus: 'pending' },
   { id: 'd009', applicationId: 'app004', documentType: 'term_sheet', requiredFlag: 'mandatory', status: 'uploaded', version: 1, stampStatus: 'not_required', notarisationStatus: 'not_required' },
   { id: 'd010', applicationId: 'app004', documentType: 'cancelled_cheque', requiredFlag: 'mandatory', status: 'verified', version: 1, stampStatus: 'not_required', notarisationStatus: 'not_required' },
+  { id: 'd011', applicationId: 'app005', documentType: 'loan_agreement', requiredFlag: 'mandatory', status: 'complete', version: 1, stampStatus: 'not_required', notarisationStatus: 'not_required' },
+  { id: 'd012', applicationId: 'app009', documentType: 'loan_agreement', requiredFlag: 'mandatory', status: 'uploaded', version: 1, stampStatus: 'pending', notarisationStatus: 'not_required' },
+  { id: 'd013', applicationId: 'app010', documentType: 'loan_agreement', requiredFlag: 'mandatory', status: 'complete', version: 1, stampStatus: 'not_required', notarisationStatus: 'not_required' }
 ];
 
 export const securities: SecurityInstrument[] = [
@@ -192,6 +340,9 @@ export const securities: SecurityInstrument[] = [
   { id: 's002', applicationId: 'app004', securityType: 'poa', status: 'executed', executionDate: '2026-05-28', custodian: 'Company Secretary', stampDutyStatus: 'pending', notarisationStatus: 'pending', invocationApprovalRequired: true, invocationStatus: 'not_initiated' },
   { id: 's003', applicationId: 'app004', securityType: 'blank_cheque', status: 'held', executionDate: '2026-05-28', custodian: 'Company Secretary', invocationApprovalRequired: true, invocationStatus: 'not_initiated' },
   { id: 's004', applicationId: 'app005', securityType: 'cdsl_pledge', status: 'pledged', executionDate: '2026-04-22', custodian: 'Company Secretary', invocationApprovalRequired: true, invocationStatus: 'not_initiated', psnNumber: 'CDSL-2026-00234' },
+  { id: 's005', applicationId: 'app009', securityType: 'cdsl_pledge', status: 'pending', executionDate: '2026-05-18', custodian: 'Company Secretary', invocationApprovalRequired: true, invocationStatus: 'not_initiated' },
+  { id: 's006', applicationId: 'app010', securityType: 'blank_cheque', status: 'held', executionDate: '2026-03-08', custodian: 'Company Secretary', invocationApprovalRequired: true, invocationStatus: 'not_initiated' },
+  { id: 's007', applicationId: 'app011', securityType: 'poa', status: 'invoked', executionDate: '2024-01-02', custodian: 'Company Secretary', stampDutyStatus: 'complete', notarisationStatus: 'complete', invocationApprovalRequired: true, invocationStatus: 'approved' },
 ];
 
 export const auditEvents: AuditEvent[] = [
@@ -199,6 +350,9 @@ export const auditEvents: AuditEvent[] = [
   { id: 'ae002', entityType: 'application', entityId: 'app001', eventType: 'Reference Number Generated', timestamp: '2026-06-10T11:00:00Z', actorName: 'Priya Kulkarni', actorRole: 'deputy_manager_finance', previousState: 'submitted', newState: 'reference_generated', comment: 'Application complete. Ref LO00000042 issued.' },
   { id: 'ae003', entityType: 'application', entityId: 'app001', eventType: 'Appraisal Note Prepared', timestamp: '2026-06-11T10:00:00Z', actorName: 'Priya Kulkarni', actorRole: 'deputy_manager_finance', previousState: 'appraisal_pending', newState: 'credit_review' },
   { id: 'ae004', entityType: 'application', entityId: 'app001', eventType: 'Submitted to Sanction Committee', timestamp: '2026-06-11T15:30:00Z', actorName: 'Priya Kulkarni', actorRole: 'credit_manager', previousState: 'credit_review', newState: 'pending_sanction' },
+  { id: 'ae005', entityType: 'application', entityId: 'app004', eventType: 'Sanction Approved', timestamp: '2026-05-25T14:00:00Z', actorName: 'Rajesh Sharma', actorRole: 'sanction_committee', previousState: 'pending_sanction', newState: 'sanctioned' },
+  { id: 'ae006', entityType: 'application', entityId: 'app010', eventType: 'Disbursement Initiated', timestamp: '2026-03-12T10:00:00Z', actorName: 'Deepak Rao', actorRole: 'senior_manager_finance', previousState: 'ready_for_payment', newState: 'pending_cfc_approval' },
+  { id: 'ae007', entityType: 'loan_account', entityId: 'ln004', eventType: 'Default Recovery Action Initiated', timestamp: '2026-06-01T10:00:00Z', actorName: 'Rajesh Sharma', actorRole: 'sanction_committee', previousState: 'default_review', newState: 'recovery_in_progress' },
 ];
 
 export const complianceRecords: ComplianceRecord[] = [
@@ -213,17 +367,16 @@ export const complianceRecords: ComplianceRecord[] = [
 ];
 
 export const dashboardStats: DashboardStats = {
-  newApplications: 3,
+  newApplications: 5,
   pendingCompleteness: 1,
-  pendingAppraisal: 2,
-  pendingSanction: 1,
-  documentationPending: 1,
-  readyForDisbursement: 0,
-  activeLoans: 8,
-  overdueLoans: 3,
-  totalPortfolio: 3850000,
-  sectionUtilisation: 68,
-  openExceptions: 1,
-  reKycDue: 2,
+  pendingAppraisal: 3,
+  pendingSanction: 2,
+  documentationPending: 2,
+  readyForDisbursement: 1,
+  activeLoans: 14,
+  overdueLoans: 4,
+  totalPortfolio: 8550000,
+  sectionUtilisation: 72,
+  openExceptions: 2,
+  reKycDue: 3,
 };
-

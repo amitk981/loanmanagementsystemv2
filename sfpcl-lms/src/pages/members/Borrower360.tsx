@@ -47,7 +47,7 @@ const Borrower360: React.FC<Borrower360Props> = ({ memberId, onBack, onOpenAppli
   const TABS = [
     { id: 'summary',     label: 'Borrower Summary' },
     { id: 'applications', label: 'Applications', badge: memberApps.length || undefined },
-    { id: 'loans',       label: 'Active Loans', badge: memberLoans.filter(l => l.status === 'active' || l.status === 'overdue').length || undefined },
+    { id: 'loans',       label: 'Loan Accounts', badge: memberLoans.filter(l => l.status === 'active' || l.status === 'overdue').length || undefined },
     { id: 'repayments',  label: 'Repayment History' },
     { id: 'security',    label: 'Security Instruments' },
     { id: 'docs',        label: 'Documentation' },
@@ -220,7 +220,7 @@ const Borrower360: React.FC<Borrower360Props> = ({ memberId, onBack, onOpenAppli
           ))}
         </div>
 
-        {/* ── Tab 2: Active Loans ── */}
+        {/* ── Tab 2: Loan Accounts ── */}
         <div className="space-y-3">
           {memberLoans.length === 0 ? (
             <div className="card text-center py-8 text-slate-400 text-sm">No loan accounts found.</div>

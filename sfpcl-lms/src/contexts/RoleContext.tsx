@@ -52,7 +52,7 @@ export type Permission =
   | 'view_members' | 'edit_members'
   | 'do_appraisal' | 'do_completeness_check'
   | 'view_sanction' | 'approve_sanction' | 'reject_sanction'
-  | 'view_documentation' | 'manage_documentation'
+  | 'view_documentation' | 'manage_documentation' | 'approve_credit_checklist'
   | 'initiate_disbursement' | 'authorise_disbursement'
   | 'view_loan_accounts' | 'post_repayment'
   | 'view_monitoring' | 'manage_defaults' | 'approve_recovery'
@@ -60,21 +60,22 @@ export type Permission =
   | 'view_registers' | 'export_registers'
   | 'view_reports' | 'view_settings' | 'manage_settings'
   | 'view_audit' | 'manage_users'
-  | 'view_own_loan';
+  | 'view_own_loan'
+  | 'manage_interest' | 'manage_closure';
 
 const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   deputy_manager_finance: [
     'view_applications', 'create_application', 'edit_application',
     'view_members', 'do_appraisal', 'do_completeness_check',
-    'view_documentation', 'view_loan_accounts', 'view_registers',
+    'view_documentation',
   ],
   credit_manager: [
     'view_applications', 'create_application', 'edit_application',
     'view_members', 'edit_members', 'do_appraisal', 'do_completeness_check',
-    'view_sanction', 'view_documentation', 'manage_documentation',
-    'view_loan_accounts', 'post_repayment',
+    'view_sanction', 'view_documentation', 'approve_credit_checklist',
+    'view_loan_accounts',
     'view_monitoring', 'manage_defaults',
-    'view_compliance', 'view_registers', 'export_registers',
+    'view_registers', 'export_registers',
     'view_reports', 'view_audit',
   ],
   compliance_team: [
@@ -88,26 +89,29 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'view_documentation', 'manage_documentation',
     'view_compliance', 'manage_compliance',
     'view_registers', 'export_registers',
-    'view_audit',
+    'view_audit', 'manage_closure',
   ],
   sanction_committee: [
     'view_applications', 'view_members',
     'view_sanction', 'approve_sanction', 'reject_sanction',
     'view_documentation', 'view_registers', 'view_audit',
+    'approve_recovery', 'manage_defaults',
   ],
   cfo: [
     'view_applications', 'view_members',
     'view_sanction', 'approve_sanction', 'reject_sanction',
     'view_documentation', 'view_loan_accounts',
     'view_monitoring', 'manage_defaults', 'approve_recovery',
-    'view_compliance', 'manage_compliance',
+    'view_compliance',
     'view_registers', 'export_registers',
     'view_reports', 'view_audit', 'view_settings',
+    'manage_interest', 'manage_closure',
   ],
   director: [
     'view_applications', 'view_members',
     'view_sanction', 'approve_sanction', 'reject_sanction',
     'view_documentation', 'view_registers', 'view_audit',
+    'approve_recovery', 'manage_defaults',
   ],
   senior_manager_finance: [
     'view_applications', 'view_members',
@@ -123,7 +127,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   accounts: [
     'view_applications', 'view_members',
     'view_loan_accounts', 'post_repayment',
-    'view_monitoring',
+    'view_monitoring', 'manage_interest',
     'view_registers', 'export_registers',
     'view_reports',
   ],
@@ -135,11 +139,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'view_reports', 'view_audit',
   ],
   admin: [
-    'view_applications', 'view_members',
-    'view_sanction', 'view_documentation',
-    'view_loan_accounts', 'view_monitoring',
-    'view_compliance', 'view_registers',
-    'view_reports', 'view_settings', 'manage_settings', 'view_audit', 'manage_users',
+    'view_settings', 'manage_settings', 'manage_users',
   ],
   borrower: ['view_own_loan'],
 };

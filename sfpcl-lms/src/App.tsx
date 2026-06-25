@@ -5,6 +5,9 @@ import { Role } from './types';
 import AppShell from './components/layout/AppShell';
 import LoginScreen from './pages/auth/LoginScreen';
 import BorrowerPortal from './pages/borrower/BorrowerPortal';
+import MP00_Login from './pages/borrower/portal/auth/MP00_Login';
+import MP01_Activation from './pages/borrower/portal/auth/MP01_Activation';
+import MP02_ForgotPassword from './pages/borrower/portal/auth/MP02_ForgotPassword';
 
 import Dashboard from './pages/Dashboard';
 import ApplicationList from './pages/applications/ApplicationList';
@@ -44,6 +47,8 @@ export type Page =
   | 'audit' | 'settings'
   | 'borrower';
 
+type AuthView = 'staff' | 'memberLogin' | 'memberActivation' | 'memberForgot';
+
 // Inner component so it can use useRole hook (inside RoleProvider)
 const AppInner: React.FC = () => {
   const { currentUser, setRole } = useRole();
@@ -52,6 +57,7 @@ const AppInner: React.FC = () => {
   const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [selectedLoanAccountId, setSelectedLoanAccountId] = useState<string | null>(null);
+  const [authView, setAuthView] = useState<AuthView>('staff');
 
   const handleLogin = (role: Role) => {
     setRole(role);
@@ -64,10 +70,37 @@ const AppInner: React.FC = () => {
   const handleLogout = () => {
     setIsLoggedIn(false);
     setPage('dashboard');
+    setAuthView('staff');
   };
 
   if (!isLoggedIn) {
-    return <LoginScreen onLogin={handleLogin} />;
+    if (authView === 'memberLogin') {
+      return (
+        <MP00_Login
+          onLogin={() => handleLogin('borrower')}
+          onNavigateToActivation={() => setAuthView('memberActivation')}
+          onNavigateToForgot={() => setAuthView('memberForgot')}
+          onBackToStaffLogin={() => setAuthView('staff')}
+        />
+      );
+    }
+    if (authView === 'memberActivation') {
+      return (
+        <MP01_Activation
+          onBackToLogin={() => setAuthView('memberLogin')}
+          onActivate={() => handleLogin('borrower')}
+        />
+      );
+    }
+    if (authView === 'memberForgot') {
+      return (
+        <MP02_ForgotPassword
+          onBackToLogin={() => setAuthView('memberLogin')}
+          onResetComplete={() => setAuthView('memberLogin')}
+        />
+      );
+    }
+    return <LoginScreen onLogin={handleLogin} onOpenMemberPortal={() => setAuthView('memberLogin')} />;
   }
 
   // Borrower gets their own portal layout (no sidebar/header chrome)
@@ -77,7 +110,11 @@ const AppInner: React.FC = () => {
 
   const navigate = (target: Page, id?: string) => {
     setPage(target);
-    if (target === 'applications/detail' && id) setSelectedApplicationId(id);
+    if (
+      ['applications/detail', 'appraisal', 'sanction', 'documentation', 'disbursement', 'cfc'].includes(target) && id
+    ) {
+      setSelectedApplicationId(id);
+    }
     if (target === 'members/profile' && id) setSelectedMemberId(id);
     if (target === 'loan-accounts/detail' && id) setSelectedLoanAccountId(id);
   };
@@ -87,7 +124,7 @@ const AppInner: React.FC = () => {
       case 'dashboard':
         return <Dashboard onNavigate={navigate} />;
       case 'tasks':
-        return <TaskInbox onOpenApplication={id => navigate('applications/detail', id)} />;
+        return <TaskInbox onNavigate={navigate} />;
       case 'applications':
         return (
           <ApplicationList
@@ -124,14 +161,14 @@ const AppInner: React.FC = () => {
           />
         );
       case 'appraisal':
-        return <AppraisalWorkbench onOpenApplication={id => navigate('applications/detail', id)} />;
+        return <AppraisalWorkbench onOpenApplication={id => navigate('applications/detail', id)} initialSelectedId={selectedApplicationId || undefined} />;
       case 'sanction':
-        return <SanctionWorkbench onOpenApplication={id => navigate('applications/detail', id)} />;
+        return <SanctionWorkbench onOpenApplication={id => navigate('applications/detail', id)} initialSelectedId={selectedApplicationId || undefined} />;
       case 'documentation':
-        return <DocumentationHub onOpenApplication={id => navigate('applications/detail', id)} />;
+        return <DocumentationHub onOpenApplication={id => navigate('applications/detail', id)} initialSelectedId={selectedApplicationId || undefined} />;
       case 'disbursement':
       case 'cfc':
-        return <DisbursementHub onOpenApplication={id => navigate('applications/detail', id)} />;
+        return <DisbursementHub onOpenApplication={id => navigate('applications/detail', id)} initialSelectedId={selectedApplicationId || undefined} />;
       case 'interest':
         return <InterestManagement />;
       case 'loan-accounts':

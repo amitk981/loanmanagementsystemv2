@@ -7,15 +7,29 @@ import { loanApplications, loanAccounts, securities, members, complianceRecords,
 const fmt = (n: number) => '₹' + n.toLocaleString('en-IN');
 
 const REGISTER_TABS = [
-  { id: 'loan_register',      label: 'Loan Register' },
+  { id: 'loan_register',      label: 'Loan Account Register' },
+  { id: 'loan_request_register', label: 'Loan Request Register' },
   { id: 'sanction_register',  label: 'Credit Sanction Register' },
   { id: 'security_register',  label: 'Security Register' },
   { id: 'exception_register', label: 'Exception Register' },
   { id: 'member_register',    label: 'Member Register' },
+  { id: 'compliance_register', label: 'Compliance Register' },
   { id: 'stamp_duty',         label: 'Stamp Duty Register' },
   { id: 'audit_log',          label: 'Audit Log Explorer' },
   { id: 'grievance_register', label: 'Grievance Register' },
   { id: 'recovery_log',       label: 'Recovery Log' },
+  { id: 'blank_cheque_register', label: 'Blank-Dated Cheque Register' },
+  { id: 'sh4_register',       label: 'SH-4 Register' },
+  { id: 'cdsl_register',      label: 'CDSL Pledge Register' },
+  { id: 'sap_register',       label: 'SAP Customer Code Register' },
+  { id: 'disbursement_register', label: 'Disbursement Register' },
+  { id: 'repayment_register', label: 'Repayment Register' },
+  { id: 'interest_invoice_register', label: 'Interest Invoice Register' },
+  { id: 'accrual_register',   label: 'Accrual Register' },
+  { id: 'dpd_register',       label: 'DPD / Monitoring Register' },
+  { id: 'noc_register',       label: 'NOC / Closure Register' },
+  { id: 'archive_register',   label: 'Archive Register' },
+  { id: 'sop_change_register', label: 'SOP Change Register' },
 ];
 
 const RegistersHub: React.FC = () => {
@@ -49,6 +63,117 @@ const RegistersHub: React.FC = () => {
     const matchTo = !auditDateTo || ev.timestamp <= auditDateTo + 'T23:59:59Z';
     return matchSearch && matchRole && matchEntity && matchFrom && matchTo;
   });
+
+  const supplementalRegisters = [
+    {
+      title: 'Blank-Dated Cheque Register',
+      subtitle: 'Cheque custody, return and invocation records',
+      headers: ['Cheque ID', 'Application', 'Borrower', 'Bank', 'Custody', 'Status', 'Return / Invocation'],
+      rows: [
+        ['CHQ-2024-042', 'LO00000042', 'Ganesh Thorat', 'HDFC Bank', 'Company Secretary', 'held', 'Pending closure'],
+        ['CHQ-2025-035', 'LO00000035', 'Kisan FPC Ltd', 'Bank of Maharashtra', 'Company Secretary', 'invocation_pending', 'Recovery approved'],
+      ],
+    },
+    {
+      title: 'SH-4 Register',
+      subtitle: 'Physical share transfer forms held for security',
+      headers: ['SH-4 ID', 'Application', 'Borrower', 'Shares', 'Execution Date', 'Custodian', 'Status'],
+      rows: [
+        ['SH4-2024-042', 'LO00000042', 'Ganesh Thorat', '5', '2024-09-15', 'Company Secretary', 'held'],
+        ['SH4-2023-021', 'LO00000021', 'Ganesh Thorat', '3', '2022-09-14', 'Company Secretary', 'returned'],
+      ],
+    },
+    {
+      title: 'CDSL Pledge Register',
+      subtitle: 'Demat pledge creation, invocation and unpledge tracking',
+      headers: ['Pledge ID', 'Application', 'Borrower', 'PSN', 'BO ID', 'Status', 'Unpledge Date'],
+      rows: [
+        ['CDSL-2026-00234', 'LO00000035', 'Kisan FPC Ltd', 'PSN-00234', '12081600XXXX2234', 'pledged', '—'],
+        ['CDSL-2025-00112', 'LO00000028', 'Vijay Patil', 'PSN-00112', '12081600XXXX1188', 'unpledged', '2025-05-14'],
+      ],
+    },
+    {
+      title: 'SAP Customer Code Register',
+      subtitle: 'SAP customer profile request and confirmation records',
+      headers: ['Request ID', 'Application', 'Borrower', 'Requested On', 'SAP Code', 'Status', 'Confirmed By'],
+      rows: [
+        ['SAPR-2024-042', 'LO00000042', 'Ganesh Thorat', '2024-09-20', 'SAP-240042', 'created', 'Senior Manager Finance'],
+        ['SAPR-2026-047', 'LO00000047', 'Vijay Deshmukh', '2026-06-18', '—', 'pending', '—'],
+      ],
+    },
+    {
+      title: 'Disbursement Register',
+      subtitle: 'Payment initiation, bank authorisation and UTR evidence',
+      headers: ['Advice ID', 'Loan', 'Borrower', 'Amount', 'Initiated', 'UTR', 'Status'],
+      rows: [
+        ['DA-2024-042', 'LO00000042', 'Ganesh Thorat', fmt(500000), '2024-09-22', 'UTR2409220042', 'completed'],
+        ['DA-2026-047', 'LO00000047', 'Vijay Deshmukh', fmt(450000), '—', '—', 'readiness_pending'],
+      ],
+    },
+    {
+      title: 'Repayment Register',
+      subtitle: 'Repayment receipts, channels and allocation status',
+      headers: ['Receipt ID', 'Loan', 'Borrower', 'Amount', 'Channel', 'UTR', 'Allocation'],
+      rows: [
+        ['RCP-2025-042-03', 'LO00000042', 'Ganesh Thorat', fmt(105000), 'Direct NEFT', 'UTR2506290042', 'principal_first'],
+        ['RCP-2025-044-02', 'LO00000044', 'Sunita Kamble', fmt(52000), 'Subsidiary Deduction', 'SUB-APR-044', 'principal_first'],
+      ],
+    },
+    {
+      title: 'Interest Invoice Register',
+      subtitle: 'Annual borrower interest invoices and payment status',
+      headers: ['Invoice', 'Loan', 'Borrower', 'Period', 'Amount', 'Due By', 'Status'],
+      rows: [
+        ['INV-2025-001', 'LO00000042', 'Ganesh Thorat', 'FY 2024-25', fmt(36000), '2025-04-30', 'sent'],
+        ['INV-2025-003', 'LO00000038', 'Malti Shinde', 'FY 2024-25', fmt(25200), '2025-04-30', 'overdue'],
+      ],
+    },
+    {
+      title: 'Accrual Register',
+      subtitle: 'Monthly and quarterly interest accrual postings',
+      headers: ['Accrual ID', 'Loan', 'Borrower', 'Period', 'Principal', 'Accrued', 'SAP Status'],
+      rows: [
+        ['ACR-2025-Q2-042', 'LO00000042', 'Ganesh Thorat', 'Q2 FY 2025-26', fmt(350000), fmt(10543), 'pending'],
+        ['ACR-2025-Q2-038', 'LO00000038', 'Malti Shinde', 'Q2 FY 2025-26', fmt(180000), fmt(6273), 'pending'],
+      ],
+    },
+    {
+      title: 'DPD / Monitoring Register',
+      subtitle: 'Delinquency bucket and reminder tracking',
+      headers: ['Loan', 'Borrower', 'DPD', 'Bucket', 'Last Reminder', 'Next Action', 'Owner'],
+      rows: [
+        ['LO00000042', 'Ganesh Thorat', '45', '31-60', '2025-06-10', 'Grace review', 'Credit Manager'],
+        ['LO00000038', 'Malti Shinde', '95', '91-365', '2025-06-15', 'Non-payment note', 'Credit Manager'],
+      ],
+    },
+    {
+      title: 'NOC / Closure Register',
+      subtitle: 'Closure readiness, NOC issue and security return tracking',
+      headers: ['NOC ID', 'Loan', 'Borrower', 'Balance', 'NOC Status', 'Security Return', 'Archive'],
+      rows: [
+        ['NOC-2025-042', 'LO00000031', 'Asha Bhosale', fmt(0), 'ready', 'pending', 'pending'],
+        ['NOC-2025-025', 'LO00000025', 'Radha Kisan Org', fmt(0), 'issued', 'complete', 'archived'],
+      ],
+    },
+    {
+      title: 'Archive Register',
+      subtitle: 'Closed loan file archive and retention records',
+      headers: ['Archive ID', 'Loan', 'Borrower', 'Closed On', 'Location', 'Retention Until', 'Status'],
+      rows: [
+        ['ARC-2025-025', 'LO00000025', 'Radha Kisan Org', '2025-03-28', 'Cabinet 3, Row 2', '2033-03-28', 'archived'],
+        ['ARC-2023-021', 'LO00000021', 'Ganesh Thorat', '2023-03-20', 'Cabinet 1, Row 4', '2031-03-20', 'archived'],
+      ],
+    },
+    {
+      title: 'SOP Change Register',
+      subtitle: 'Policy/SOP revisions and Board approval tracking',
+      headers: ['Change ID', 'Area', 'Requested By', 'Requested On', 'Approval', 'Effective Date', 'Status'],
+      rows: [
+        ['SOP-CHG-001', 'Loan threshold matrix', 'CFO', '2026-05-12', 'Board pending', '—', 'under_review'],
+        ['SOP-CHG-002', 'KYC refresh cycle', 'Company Secretary', '2026-04-08', 'Approved', '2026-06-01', 'active'],
+      ],
+    },
+  ];
 
   return (
     <div className="p-6 space-y-4">
@@ -113,7 +238,59 @@ const RegistersHub: React.FC = () => {
           </div>
         </div>
 
-        {/* Tab 1: Credit Sanction Register */}
+        {/* Tab 1: Loan Request Register */}
+        <div className="card p-0 overflow-hidden">
+          <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                <FileText size={14} className="text-green-600" /> Loan Request Register
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">All submitted and draft loan requests before account creation — {loanApplications.length} records</p>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200">
+                  <th className="table-header text-left">Application No.</th>
+                  <th className="table-header text-left">Member</th>
+                  <th className="table-header text-left">Type</th>
+                  <th className="table-header text-right">Requested</th>
+                  <th className="table-header text-right">Eligible</th>
+                  <th className="table-header text-left">Purpose</th>
+                  <th className="table-header text-left">Status</th>
+                  <th className="table-header text-left">Owner</th>
+                  <th className="table-header text-left">Exception</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {loanApplications.map(app => (
+                  <tr key={app.id} className={`hover:bg-slate-50 ${app.isException ? 'bg-violet-50/30' : ''}`}>
+                    <td className="table-cell num font-semibold text-green-700">{app.applicationNumber}</td>
+                    <td className="table-cell font-medium">{app.memberName}</td>
+                    <td className="table-cell capitalize">{app.memberType.replace('_', ' ')}</td>
+                    <td className="table-cell text-right num">{fmt(app.requestedAmount)}</td>
+                    <td className="table-cell text-right num">{fmt(app.eligibleAmount)}</td>
+                    <td className="table-cell capitalize">{app.purpose.replace(/_/g, ' ')}</td>
+                    <td className="table-cell"><StatusBadge label={app.status} size="sm" /></td>
+                    <td className="table-cell text-slate-600">{app.currentOwner}</td>
+                    <td className="table-cell">
+                      {app.isException ? (
+                        <span className="flex items-center gap-1 text-xs text-violet-700">
+                          <AlertOctagon size={12} /> Yes
+                        </span>
+                      ) : (
+                        <span className="text-xs text-green-600">No</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Tab 2: Credit Sanction Register */}
         <div className="card p-0 overflow-hidden">
           <div className="p-4 bg-slate-50 border-b border-slate-200">
             <p className="text-sm font-semibold text-slate-900 flex items-center gap-2">
@@ -313,7 +490,7 @@ const RegistersHub: React.FC = () => {
           <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                <FileText size={14} className="text-green-600" /> Stamp Duty Register (S66)
+                <FileText size={14} className="text-green-600" /> Stamp Duty Register
               </p>
               <p className="text-xs text-slate-500 mt-0.5">Stamp duty and notarisation records for all security documents</p>
             </div>
@@ -359,7 +536,7 @@ const RegistersHub: React.FC = () => {
           <div className="card">
             <div className="flex items-center gap-2 mb-3">
               <Filter size={14} className="text-slate-500" />
-              <p className="text-sm font-semibold text-slate-700">Audit Log Explorer (S74)</p>
+              <p className="text-sm font-semibold text-slate-700">Audit Log Explorer</p>
               <span className="text-xs text-slate-400 ml-auto">{filteredAudit.length} events</span>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -534,6 +711,47 @@ const RegistersHub: React.FC = () => {
             </table>
           </div>
         </div>
+
+        {supplementalRegisters.map(register => (
+          <div key={register.title} className="card p-0 overflow-hidden">
+            <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                  <BookOpen size={14} className="text-green-600" /> {register.title}
+                </p>
+                <p className="text-xs text-slate-500 mt-0.5">{register.subtitle}</p>
+              </div>
+              <button className="flex items-center gap-1 text-xs text-green-700 hover:underline">
+                <Download size={12} /> Export
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    {register.headers.map(header => (
+                      <th key={header} className="table-header text-left whitespace-nowrap">{header}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {register.rows.map((row, rowIndex) => (
+                    <tr key={`${register.title}-${rowIndex}`} className="hover:bg-slate-50">
+                      {row.map((cell, cellIndex) => (
+                        <td
+                          key={`${register.title}-${rowIndex}-${cellIndex}`}
+                          className={`table-cell ${cellIndex === 0 ? 'font-mono text-slate-700' : 'text-slate-600'}`}
+                        >
+                          {cellIndex === row.length - 1 ? <StatusBadge label={cell} size="sm" /> : cell}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))}
       </Tabs>
     </div>
   );

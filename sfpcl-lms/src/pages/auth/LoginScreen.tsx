@@ -5,6 +5,7 @@ import { ROLE_LABELS, ROLE_USERS } from '../../contexts/RoleContext';
 
 interface LoginScreenProps {
   onLogin: (role: Role) => void;
+  onOpenMemberPortal?: () => void;
 }
 
 const ALL_ROLES: Role[] = [
@@ -13,7 +14,7 @@ const ALL_ROLES: Role[] = [
   'senior_manager_finance', 'cfc', 'accounts', 'auditor', 'admin', 'borrower',
 ];
 
-const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
+const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onOpenMemberPortal }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -89,6 +90,17 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
 
           <h2 className="text-2xl font-bold text-slate-900 mb-2">Sign in to your account</h2>
           <p className="text-slate-500 text-sm mb-8">Authorised personnel only. All access is logged.</p>
+
+          {onOpenMemberPortal && (
+            <button
+              type="button"
+              onClick={onOpenMemberPortal}
+              className="w-full mb-5 flex items-center justify-center gap-2 border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 font-semibold py-2.5 rounded-lg transition-colors"
+            >
+              <Sprout size={17} />
+              Open Member Portal Login
+            </button>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>

@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { Banknote, ChevronRight, Check, AlertTriangle, Building2 } from 'lucide-react';
+import { Banknote, ChevronRight, Check, AlertTriangle, Building2, ShieldCheck, Download, FileText, Upload } from 'lucide-react';
 import StatusBadge from '../../components/ui/StatusBadge';
 import AlertBanner from '../../components/ui/AlertBanner';
 import { loanApplications } from '../../data/mockData';
+import { useRole } from '../../contexts/RoleContext';
 
 const fmt = (n: number) => '₹' + n.toLocaleString('en-IN');
 
 interface DisbursementHubProps {
   onOpenApplication: (id: string) => void;
+  initialSelectedId?: string;
 }
 
 type DisbStage = 'sap_pending' | 'bank_verify' | 'ready' | 'initiated' | 'cfc_pending' | 'completed';
@@ -21,16 +23,24 @@ const STAGE_LABELS: Record<DisbStage, string> = {
   completed: 'Completed',
 };
 
-const DisbursementHub: React.FC<DisbursementHubProps> = ({ onOpenApplication }) => {
+const DisbursementHub: React.FC<DisbursementHubProps> = ({ onOpenApplication, initialSelectedId }) => {
   const disbQueue = loanApplications.filter(a =>
     a.status === 'sanctioned' && a.documentationStatus === 'complete'
   );
-  const [selected, setSelected] = useState<string | null>(disbQueue[0]?.id || null);
+  
+  const initialApp = initialSelectedId ? disbQueue.find(a => a.id === initialSelectedId || a.applicationNumber === initialSelectedId) : null;
+  const [selected, setSelected] = useState<string | null>(
+    initialApp?.id || disbQueue[0]?.id || null
+  );
   const [sapCode, setSapCode] = useState('');
   const [bankAccount, setBankAccount] = useState('');
   const [bankIfsc, setBankIfsc] = useState('');
   const [stage, setStage] = useState<DisbStage>('sap_pending');
   const [confirmed, setConfirmed] = useState(false);
+  const [bankVerified, setBankVerified] = useState(false);
+  const [bankReference, setBankReference] = useState('');
+  const [evidenceUploaded, setEvidenceUploaded] = useState(false);
+  const { can } = useRole();
 
   const app = disbQueue.find(a => a.id === selected) || loanApplications.find(a => a.disbursementStatus === 'completed');
 
@@ -184,8 +194,54 @@ const DisbursementHub: React.FC<DisbursementHubProps> = ({ onOpenApplication }) 
                 )}
               </div>
 
+              {/* Bank verification and readiness gate */}
+              {(stage === 'sap_pending' || stage === 'bank_verify' || stage === 'ready') && (
+                <div className="card">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                    <ShieldCheck size={14} /> Disbursement Readiness Review
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                    {[
+                      { label: 'Documentation', value: app.documentationStatus === 'complete' ? 'Complete' : 'Pending', ok: app.documentationStatus === 'complete' },
+                      { label: 'SAP Code', value: app.sapCustomerCode || sapCode || 'Pending', ok: Boolean(app.sapCustomerCode || sapCode) },
+                      { label: 'Bank Verification', value: bankVerified || stage === 'ready' ? 'Verified' : 'Pending', ok: bankVerified || stage === 'ready' },
+                    ].map(item => (
+                      <div key={item.label} className={`rounded-lg border p-3 ${item.ok ? 'bg-green-50 border-green-100' : 'bg-amber-50 border-amber-100'}`}>
+                        <p className="text-xs text-slate-500">{item.label}</p>
+                        <p className={`text-sm font-semibold mt-0.5 ${item.ok ? 'text-green-800' : 'text-amber-800'}`}>{item.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {stage !== 'ready' ? (
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-amber-50 border border-amber-200 rounded-lg p-4">
+                      <div className="text-sm text-amber-800">
+                        <p className="font-semibold">Bank verification required before payment initiation</p>
+                        <p className="text-xs mt-0.5">Confirm account name, account number, IFSC, and signature mismatch clearance.</p>
+                      </div>
+                      {can('initiate_disbursement') ? (
+                        <button
+                          className="btn-primary text-sm flex-shrink-0"
+                          disabled={!(app.sapCustomerCode || sapCode)}
+                          onClick={() => { setBankVerified(true); setStage('ready'); }}
+                        >
+                          <ShieldCheck size={16} className="mr-2" /> Mark Ready for Payment
+                        </button>
+                      ) : (
+                        <button className="btn-primary text-sm opacity-50 cursor-not-allowed flex-shrink-0" disabled>
+                          <ShieldCheck size={16} className="mr-2" /> Mark Ready for Payment
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-green-700 bg-green-50 rounded-lg p-3">
+                      <Check size={16} /> All readiness gates cleared. Payment can be initiated.
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Payment initiation */}
-              {(stage === 'ready' || stage === 'initiated' || stage === 'cfc_pending') && (
+              {(stage === 'ready' || stage === 'initiated' || stage === 'cfc_pending' || stage === 'completed') && (
                 <div className="card">
                   <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
                     <Banknote size={14} /> Initiate Payment
@@ -207,12 +263,91 @@ const DisbursementHub: React.FC<DisbursementHubProps> = ({ onOpenApplication }) 
                       </div>
                       <div className="flex gap-2">
                         <button className="btn-secondary text-sm flex-1">Hold for Review</button>
-                        <button className="btn-primary text-sm flex-1" onClick={() => setConfirmed(true)}>
-                          Initiate RTGS/NEFT Payment
-                        </button>
+                        {can('initiate_disbursement') ? (
+                          <button className="btn-primary text-sm flex-1" onClick={() => { setConfirmed(true); setStage('cfc_pending'); }}>
+                            Initiate RTGS/NEFT Payment
+                          </button>
+                        ) : (
+                          <button className="btn-primary text-sm flex-1 opacity-50 cursor-not-allowed" disabled title="Senior Manager Finance only">
+                            Initiate RTGS/NEFT Payment
+                          </button>
+                        )}
                       </div>
                     </>
                   )}
+                </div>
+              )}
+
+              {/* CFC Approval */}
+              {(stage === 'cfc_pending' || stage === 'completed') && (
+                <div className="card">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                    <ShieldCheck size={14} /> Authorise Release (CFC)
+                  </h3>
+                  {stage === 'completed' ? (
+                    <div className="flex items-center gap-2 text-green-700 bg-green-50 rounded-lg p-3">
+                      <Check size={16} /> Payment authorised and released successfully.
+                    </div>
+                  ) : (
+                    <div className="flex justify-end gap-3">
+                      {can('authorise_disbursement') ? (
+                        <button className="btn-primary" onClick={() => setStage('completed')}>
+                          <ShieldCheck size={16} className="mr-2" /> Authorise Payment
+                        </button>
+                      ) : (
+                        <button className="btn-primary opacity-50 cursor-not-allowed" disabled title="CFC only">
+                          <ShieldCheck size={16} className="mr-2" /> Authorise Payment
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Bank evidence and disbursement advice */}
+              {stage === 'completed' && (
+                <div className="card">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                    <FileText size={14} /> UTR Evidence & Disbursement Advice
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="field-label">UTR / Bank Reference</label>
+                      <input
+                        value={bankReference}
+                        onChange={e => setBankReference(e.target.value.toUpperCase())}
+                        className="field-input"
+                        placeholder="e.g. UTR20260624123456"
+                      />
+                    </div>
+                    <div>
+                      <label className="field-label">Bank Evidence</label>
+                      <button
+                        type="button"
+                        onClick={() => setEvidenceUploaded(true)}
+                        className={`w-full flex items-center justify-center gap-2 border rounded-lg px-4 py-2.5 text-sm font-medium transition-colors ${
+                          evidenceUploaded
+                            ? 'border-green-200 bg-green-50 text-green-700'
+                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        {evidenceUploaded ? <Check size={15} /> : <Upload size={15} />}
+                        {evidenceUploaded ? 'Evidence Uploaded' : 'Upload Evidence'}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="text-sm text-green-800">
+                      <p className="font-semibold">Disbursement advice ready</p>
+                      <p className="text-xs mt-0.5">Publish the borrower copy after UTR and bank evidence are recorded.</p>
+                    </div>
+                    <button
+                      className="flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                      disabled={!bankReference || !evidenceUploaded}
+                    >
+                      <Download size={15} /> Generate Advice
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

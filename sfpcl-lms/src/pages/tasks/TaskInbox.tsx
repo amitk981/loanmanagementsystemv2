@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import {
   Inbox, Clock, AlertTriangle, CheckCircle2, ChevronRight,
-  Filter, Calendar, User, ArrowRight
+  Filter, Calendar, User, ArrowRight, Download, MoreVertical,
+  MessageSquare, UserPlus, Ban
 } from 'lucide-react';
 import StatusBadge from '../../components/ui/StatusBadge';
 import { useRole } from '../../contexts/RoleContext';
@@ -21,7 +22,12 @@ interface Task {
   tatRemaining: string;
   status: string;
   assignedRole: string;
+  assignedUser?: string;
   createdDate: string;
+  dueDate: string;
+  borrowerType: 'individual' | 'fpc';
+  isSpecialCase: boolean;
+  isException: boolean;
 }
 
 const typeLabels: Record<TaskType, string> = {
@@ -48,15 +54,30 @@ const typeColors: Record<TaskType, string> = {
   approval:            'bg-orange-50 text-orange-700',
 };
 
+const roleTaskTypes: Record<string, TaskType[]> = {
+  deputy_manager_finance: ['completeness_check', 'appraisal'],
+  credit_manager:         ['completeness_check', 'appraisal', 'sanction', 'default_review'],
+  sanction_committee:     ['sanction', 'approval'],
+  cfo:                    ['sanction', 'approval'],
+  director:               ['sanction', 'approval'],
+  compliance_team:        ['document_verification'],
+  company_secretary:      ['document_verification'],
+  senior_manager_finance: ['sap_setup', 'disbursement'],
+  accounts:               ['repayment_posting'],
+  cfc:                    ['sanction', 'approval', 'default_review'],
+  auditor:                [], // view only
+  admin:                  Object.keys(typeLabels) as TaskType[],
+};
+
 const allTasks: Task[] = [
-  { id: 'T001', type: 'completeness_check',  loanNo: 'LO00000047', borrower: 'Ramesh Kulkarni',  amount: 250000, priority: 'critical', tatRemaining: '3 hrs',        status: 'submitted',           assignedRole: 'deputy_manager_finance', createdDate: '2025-06-24' },
-  { id: 'T002', type: 'appraisal',            loanNo: 'LO00000046', borrower: 'Sunita Kamble',    amount: 150000, priority: 'high',     tatRemaining: '1 day',         status: 'reference_generated',  assignedRole: 'deputy_manager_finance', createdDate: '2025-06-23' },
-  { id: 'T003', type: 'sanction',             loanNo: 'LO00000044', borrower: 'Kiran Pawar',      amount: 400000, priority: 'high',     tatRemaining: '2 days',        status: 'pending_sanction',     assignedRole: 'sanction_committee',     createdDate: '2025-06-22' },
-  { id: 'T004', type: 'document_verification',loanNo: 'LO00000043', borrower: 'Asha Bhosale',     amount: 200000, priority: 'normal',   tatRemaining: '3 days',        status: 'sanctioned',           assignedRole: 'compliance_team',        createdDate: '2025-06-21' },
-  { id: 'T005', type: 'sap_setup',            loanNo: 'LO00000041', borrower: 'Vijay Patil',      amount: 300000, priority: 'high',     tatRemaining: '1 day',         status: 'pending_sap_code',     assignedRole: 'senior_manager_finance', createdDate: '2025-06-20' },
-  { id: 'T006', type: 'disbursement',         loanNo: 'LO00000040', borrower: 'Manoj Thorat',     amount: 500000, priority: 'normal',   tatRemaining: '2 days',        status: 'ready_for_payment',    assignedRole: 'senior_manager_finance', createdDate: '2025-06-19' },
-  { id: 'T007', type: 'default_review',       loanNo: 'LO00000038', borrower: 'Malti Shinde',     amount: 180000, priority: 'critical', tatRemaining: 'Overdue',       status: 'default_review',       assignedRole: 'credit_manager',         createdDate: '2025-06-15' },
-  { id: 'T008', type: 'approval',             loanNo: 'LO00000042', borrower: 'Ganesh Thorat',    amount: 350000, priority: 'high',     tatRemaining: '4 hrs',         status: 'pending_sanction',     assignedRole: 'cfo',                    createdDate: '2025-06-24' },
+  { id: 'T001', type: 'completeness_check',  loanNo: 'LO00000047', borrower: 'Ramesh Kulkarni',  amount: 250000, priority: 'critical', tatRemaining: '3 hrs',        status: 'submitted',           assignedRole: 'deputy_manager_finance', assignedUser: 'Amit Kallapa', createdDate: '2025-06-24', dueDate: '2025-06-25', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T002', type: 'appraisal',            loanNo: 'LO00000046', borrower: 'Sunita Kamble',    amount: 150000, priority: 'high',     tatRemaining: '1 day',         status: 'reference_generated',  assignedRole: 'deputy_manager_finance', createdDate: '2025-06-23', dueDate: '2025-06-26', borrowerType: 'individual', isSpecialCase: true,  isException: false },
+  { id: 'T003', type: 'sanction',             loanNo: 'LO00000044', borrower: 'Kiran Pawar',      amount: 400000, priority: 'high',     tatRemaining: '2 days',        status: 'pending_sanction',     assignedRole: 'sanction_committee',     createdDate: '2025-06-22', dueDate: '2025-06-27', borrowerType: 'fpc',        isSpecialCase: false, isException: true  },
+  { id: 'T004', type: 'document_verification',loanNo: 'LO00000043', borrower: 'Asha Bhosale',     amount: 200000, priority: 'normal',   tatRemaining: '3 days',        status: 'sanctioned',           assignedRole: 'compliance_team',        createdDate: '2025-06-21', dueDate: '2025-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T005', type: 'sap_setup',            loanNo: 'LO00000041', borrower: 'Vijay Patil',      amount: 300000, priority: 'high',     tatRemaining: '1 day',         status: 'pending_sap_code',     assignedRole: 'senior_manager_finance', createdDate: '2025-06-20', dueDate: '2025-06-26', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T006', type: 'disbursement',         loanNo: 'LO00000040', borrower: 'Manoj Thorat',     amount: 500000, priority: 'normal',   tatRemaining: '2 days',        status: 'ready_for_payment',    assignedRole: 'senior_manager_finance', createdDate: '2025-06-19', dueDate: '2025-06-27', borrowerType: 'fpc',        isSpecialCase: true,  isException: false },
+  { id: 'T007', type: 'default_review',       loanNo: 'LO00000038', borrower: 'Malti Shinde',     amount: 180000, priority: 'critical', tatRemaining: 'Overdue',       status: 'default_review',       assignedRole: 'credit_manager',         assignedUser: 'Amit Kallapa', createdDate: '2025-06-15', dueDate: '2025-06-20', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T008', type: 'approval',             loanNo: 'LO00000042', borrower: 'Ganesh Thorat',    amount: 350000, priority: 'high',     tatRemaining: '4 hrs',         status: 'pending_sanction',     assignedRole: 'cfo',                    createdDate: '2025-06-24', dueDate: '2025-06-25', borrowerType: 'individual', isSpecialCase: false, isException: true  },
 ];
 
 const priorityConfig: Record<TaskPriority, { color: string; label: string }> = {
@@ -66,24 +87,46 @@ const priorityConfig: Record<TaskPriority, { color: string; label: string }> = {
 };
 
 interface TaskInboxProps {
-  onOpenApplication?: (id: string) => void;
+  onNavigate?: (page: any, id?: string) => void;
 }
 
-const TaskInbox: React.FC<TaskInboxProps> = ({ onOpenApplication }) => {
+const TaskInbox: React.FC<TaskInboxProps> = ({ onNavigate }) => {
   const { currentUser } = useRole();
   const [filter, setFilter] = useState<'all' | TaskPriority>('all');
   const [typeFilter, setTypeFilter] = useState<TaskType | 'all'>('all');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  
+  // Advanced filters
+  const [timeFilter, setTimeFilter] = useState<'all' | 'due_today' | 'overdue'>('all');
+  const [borrowerTypeFilter, setBorrowerTypeFilter] = useState<'all' | 'individual' | 'fpc'>('all');
+  const [amountFilter, setAmountFilter] = useState<'all' | 'over_5l' | 'under_5l'>('all');
+  const [specialCaseFilter, setSpecialCaseFilter] = useState<'all' | 'yes'>('all');
+  const [exceptionFilter, setExceptionFilter] = useState<'all' | 'yes'>('all');
+  const [assignmentFilter, setAssignmentFilter] = useState<'team' | 'me'>('team');
 
   const myTasks = allTasks.filter(t =>
     t.assignedRole === currentUser.role ||
-    currentUser.role === 'credit_manager' ||
     currentUser.role === 'admin'
   );
 
-  const filtered = myTasks.filter(t =>
-    (filter === 'all' || t.priority === filter) &&
-    (typeFilter === 'all' || t.type === typeFilter)
-  );
+  const filtered = myTasks.filter(t => {
+    if (filter !== 'all' && t.priority !== filter) return false;
+    if (typeFilter !== 'all' && t.type !== typeFilter) return false;
+    
+    if (timeFilter === 'due_today' && t.dueDate !== new Date().toISOString().split('T')[0]) return false;
+    if (timeFilter === 'overdue' && t.tatRemaining !== 'Overdue') return false;
+    
+    if (borrowerTypeFilter !== 'all' && t.borrowerType !== borrowerTypeFilter) return false;
+    if (amountFilter === 'over_5l' && t.amount <= 500000) return false;
+    if (amountFilter === 'under_5l' && t.amount > 500000) return false;
+    if (specialCaseFilter === 'yes' && !t.isSpecialCase) return false;
+    if (exceptionFilter === 'yes' && !t.isException) return false;
+    
+    if (assignmentFilter === 'me' && t.assignedUser !== currentUser.name) return false;
+    
+    return true;
+  });
 
   const criticalCount = myTasks.filter(t => t.priority === 'critical').length;
   const highCount     = myTasks.filter(t => t.priority === 'high').length;
@@ -110,6 +153,16 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ onOpenApplication }) => {
               {highCount} high priority
             </span>
           )}
+          <button
+            onClick={() => {
+              // Mock CSV export
+              alert(`Exporting ${filtered.length} tasks to CSV...`);
+            }}
+            className="flex items-center gap-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors ml-2"
+          >
+            <Download size={16} />
+            Export CSV
+          </button>
         </div>
       </div>
 
@@ -134,11 +187,70 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ onOpenApplication }) => {
           className="text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
         >
           <option value="all">All task types</option>
-          {(Object.entries(typeLabels) as [TaskType, string][]).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
+          {(roleTaskTypes[currentUser.role] || Object.keys(typeLabels) as TaskType[]).map(k => (
+            <option key={k} value={k}>{typeLabels[k]}</option>
           ))}
         </select>
+        
+        <button
+          onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+          className={`flex items-center gap-2 text-sm px-3 py-2 border rounded-lg transition-colors ${
+            showAdvancedFilters ? 'bg-slate-100 border-slate-300 text-slate-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+          }`}
+        >
+          <Filter size={16} />
+          Advanced Filters
+        </button>
       </div>
+
+      {showAdvancedFilters && (
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Assignment</label>
+            <select value={assignmentFilter} onChange={e => setAssignmentFilter(e.target.value as any)} className="field-select text-sm py-1.5 w-full">
+              <option value="team">Assigned to My Team</option>
+              <option value="me">Assigned to Me</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Time</label>
+            <select value={timeFilter} onChange={e => setTimeFilter(e.target.value as any)} className="field-select text-sm py-1.5 w-full">
+              <option value="all">Any time</option>
+              <option value="due_today">Due Today</option>
+              <option value="overdue">Overdue</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Borrower Type</label>
+            <select value={borrowerTypeFilter} onChange={e => setBorrowerTypeFilter(e.target.value as any)} className="field-select text-sm py-1.5 w-full">
+              <option value="all">Any type</option>
+              <option value="individual">Individual</option>
+              <option value="fpc">FPC</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Amount Threshold</label>
+            <select value={amountFilter} onChange={e => setAmountFilter(e.target.value as any)} className="field-select text-sm py-1.5 w-full">
+              <option value="all">Any amount</option>
+              <option value="over_5l">&gt; ₹5 Lakhs</option>
+              <option value="under_5l">&le; ₹5 Lakhs</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Flags</label>
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" checked={specialCaseFilter === 'yes'} onChange={e => setSpecialCaseFilter(e.target.checked ? 'yes' : 'all')} className="w-4 h-4 rounded text-green-600 focus:ring-green-500" />
+                Special Cases only
+              </label>
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input type="checkbox" checked={exceptionFilter === 'yes'} onChange={e => setExceptionFilter(e.target.checked ? 'yes' : 'all')} className="w-4 h-4 rounded text-green-600 focus:ring-green-500" />
+                Exceptions only
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center py-20 text-center">
@@ -184,6 +296,8 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ onOpenApplication }) => {
                   <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-500">
                     <span>₹{(task.amount / 100000).toFixed(1)}L</span>
                     <span>Created {task.createdDate}</span>
+                    <span className="flex items-center gap-1"><Calendar size={12}/> Due {task.dueDate}</span>
+                    <span className="flex items-center gap-1"><User size={12}/> {task.assignedUser || task.assignedRole.replace(/_/g, ' ')}</span>
                     <StatusBadge label={task.status} size="sm" />
                   </div>
                 </div>
@@ -210,12 +324,50 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ onOpenApplication }) => {
                 </div>
 
                 {/* Action */}
-                <button
-                  onClick={() => onOpenApplication?.(task.loanNo)}
-                  className="flex-shrink-0 flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors"
-                >
-                  Open <ArrowRight size={12} />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      if (!onNavigate) return;
+                      const map: Record<TaskType, string> = {
+                        completeness_check: 'applications/detail',
+                        appraisal: 'appraisal',
+                        sanction: 'sanction',
+                        document_verification: 'documentation',
+                        sap_setup: 'disbursement',
+                        disbursement: 'disbursement',
+                        repayment_posting: 'repayments',
+                        default_review: 'defaults',
+                        approval: 'sanction',
+                      };
+                      onNavigate(map[task.type], task.loanNo);
+                    }}
+                    className="flex-shrink-0 flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors"
+                  >
+                    Open <ArrowRight size={12} />
+                  </button>
+                  <div className="relative">
+                    <button
+                      onClick={() => setActiveMenu(activeMenu === task.id ? null : task.id)}
+                      className="p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-lg transition-colors"
+                    >
+                      <MoreVertical size={16} />
+                    </button>
+                    {activeMenu === task.id && (
+                      <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-10 py-1">
+                        <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+                          <UserPlus size={14} /> Reassign Task
+                        </button>
+                        <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+                          <MessageSquare size={14} /> Add Comment
+                        </button>
+                        <div className="border-t border-slate-100 my-1"></div>
+                        <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors">
+                          <Ban size={14} /> Mark Blocked
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             ))}
           </div>

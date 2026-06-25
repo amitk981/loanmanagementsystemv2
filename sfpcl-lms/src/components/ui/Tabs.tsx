@@ -9,7 +9,7 @@ export interface Tab {
 
 interface TabsProps {
   tabs: Tab[];
-  children: React.ReactNode[];
+  children: React.ReactNode;
   defaultTab?: string;
   activeIndex?: number;
   onChange?: (index: number) => void;
@@ -17,6 +17,7 @@ interface TabsProps {
 
 const Tabs: React.FC<TabsProps> = ({ tabs, children, defaultTab, activeIndex, onChange }) => {
   const [internalActive, setInternalActive] = useState(defaultTab || tabs[0]?.id);
+  const childArray = React.Children.toArray(children);
 
   const isControlled = activeIndex !== undefined && onChange !== undefined;
   const currentIndex = isControlled ? activeIndex : tabs.findIndex(t => t.id === internalActive);
@@ -56,7 +57,7 @@ const Tabs: React.FC<TabsProps> = ({ tabs, children, defaultTab, activeIndex, on
         </div>
       </div>
       <div className="flex-1 overflow-y-auto pt-5">
-        {children[currentIndex] ?? children[0]}
+        {childArray[currentIndex] ?? childArray[0]}
       </div>
     </div>
   );

@@ -19,6 +19,10 @@ const LoanClosureHub: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ClosureTab>('closure');
   const [selectedLoan, setSelectedLoan] = useState(closureLoans[0]);
   const [nocIssued, setNocIssued] = useState(false);
+  const [nocPublished, setNocPublished] = useState(false);
+  const [securityReturnConfirmed, setSecurityReturnConfirmed] = useState(false);
+  const [archiveCompleted, setArchiveCompleted] = useState(false);
+  const [loanMarkedClosed, setLoanMarkedClosed] = useState(false);
   const [closureNotes, setClosureNotes] = useState('');
 
   const tabs: { id: ClosureTab; label: string }[] = [
@@ -28,6 +32,11 @@ const LoanClosureHub: React.FC = () => {
     { id: 'archive',         label: 'Archive' },
   ];
 
+  const nocComplete = selectedLoan.nocStatus === 'issued' || nocIssued || nocPublished;
+  const securityComplete = selectedLoan.nocStatus === 'issued' || securityReturnConfirmed;
+  const archiveComplete = selectedLoan.status === 'closed' || archiveCompleted;
+  const closedComplete = selectedLoan.status === 'closed' || loanMarkedClosed || archiveCompleted;
+
   const closureChecklist = [
     { item: 'All principal repaid',                         done: selectedLoan.outstanding === 0 },
     { item: 'All interest repaid (incl. capitalised)',      done: selectedLoan.outstanding === 0 },
@@ -35,13 +44,20 @@ const LoanClosureHub: React.FC = () => {
     { item: 'Closing balance confirmed in SAP',            done: selectedLoan.outstanding === 0 },
     { item: 'Security documents accounted',                done: true },
     { item: 'Compliance checklist complete',               done: true },
-    { item: 'NOC issued to borrower',                      done: selectedLoan.nocStatus === 'issued' },
-    { item: 'SH-4 / CDSL pledge released',                 done: selectedLoan.nocStatus === 'issued' },
-    { item: 'Blank cheque returned',                       done: selectedLoan.nocStatus === 'issued' },
-    { item: 'Loan record archived',                        done: selectedLoan.status === 'closed' },
+    { item: 'NOC issued to borrower',                      done: nocComplete },
+    { item: 'SH-4 / CDSL pledge released',                 done: securityComplete },
+    { item: 'Blank cheque returned',                       done: securityComplete },
+    { item: 'Loan record archived',                        done: archiveComplete },
   ];
 
   const completedCount = closureChecklist.filter(c => c.done).length;
+  const publicationImpact = [
+    { label: 'Borrower MP20', status: nocPublished ? 'published' : nocComplete ? 'ready_to_publish' : 'not_ready', note: nocPublished ? 'Closure/NOC status is staged for the borrower portal.' : 'Publish after NOC generation.' },
+    { label: 'NOC Register', status: nocComplete ? 'updated' : 'pending', note: nocComplete ? 'NOC reference and issue date are visible in the register preview.' : 'Waiting for NOC issue.' },
+    { label: 'Security Register', status: securityComplete ? 'returned' : 'held', note: securityComplete ? 'SH-4, cheque, PoA and CDSL release states are complete.' : 'Security remains in custody.' },
+    { label: 'Archive Register', status: archiveComplete ? 'archived' : loanMarkedClosed ? 'ready' : 'pending', note: archiveComplete ? 'Archive ID and retention date are staged.' : 'Archive after closure checklist completion.' },
+    { label: 'Audit Trail', status: closedComplete ? 'events_staged' : 'in_progress', note: 'Local prototype events show closure, NOC, security return and archive actions.' },
+  ];
 
   return (
     <div className="p-6">
@@ -93,6 +109,27 @@ const LoanClosureHub: React.FC = () => {
         </div>
       </div>
 
+      <div className="bg-white border border-slate-200 rounded-xl p-4 mb-6">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900">Prototype Publication Impact</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Local UI state preview for borrower publication, registers and audit.</p>
+          </div>
+          <StatusBadge label={archiveComplete ? 'archived' : closedComplete ? 'closure_in_progress' : selectedLoan.status} size="sm" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+          {publicationImpact.map(item => (
+            <div key={item.label} className="rounded-lg bg-slate-50 border border-slate-100 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-slate-700">{item.label}</p>
+                <StatusBadge label={item.status} size="sm" />
+              </div>
+              <p className="text-xs text-slate-500 mt-2">{item.note}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Closure Checklist */}
       {activeTab === 'closure' && (
         <div className="max-w-2xl space-y-5">
@@ -140,9 +177,12 @@ const LoanClosureHub: React.FC = () => {
                   />
                 </div>
                 {can('manage_documentation') && completedCount >= 6 && (
-                  <button className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors">
+                  <button
+                    onClick={() => setLoanMarkedClosed(true)}
+                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors"
+                  >
                     <BadgeCheck size={16} />
-                    Mark Loan as Closed
+                    {loanMarkedClosed ? 'Closure Marked' : 'Mark Loan as Closed'}
                   </button>
                 )}
               </div>
@@ -200,11 +240,14 @@ const LoanClosureHub: React.FC = () => {
                 {!nocIssued ? (
                   <div className="flex gap-3">
                     <button
-                      onClick={() => setNocIssued(true)}
+                      onClick={() => {
+                        setNocIssued(true);
+                        setNocPublished(true);
+                      }}
                       className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors"
                     >
                       <BadgeCheck size={16} />
-                      Generate & Issue NOC
+                      Generate, Issue & Publish NOC
                     </button>
                     <button className="flex items-center gap-2 border border-slate-200 text-slate-700 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors">
                       <FileText size={16} />
@@ -215,8 +258,8 @@ const LoanClosureHub: React.FC = () => {
                   <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl p-4">
                     <CheckCircle2 size={20} className="text-green-600 flex-shrink-0" />
                     <div>
-                      <div className="font-medium text-green-800 text-sm">NOC issued successfully</div>
-                      <div className="text-xs text-green-600 mt-0.5">Ref: NOC-2025-042 · {new Date().toLocaleDateString('en-IN')}</div>
+                      <div className="font-medium text-green-800 text-sm">NOC issued and published successfully</div>
+                      <div className="text-xs text-green-600 mt-0.5">Ref: NOC-2025-042 · {new Date().toLocaleDateString('en-IN')} · Borrower MP20 updated</div>
                     </div>
                     <button className="ml-auto flex items-center gap-1.5 text-sm text-green-700 font-medium hover:underline flex-shrink-0">
                       <Download size={14} />
@@ -246,10 +289,10 @@ const LoanClosureHub: React.FC = () => {
 
             <div className="space-y-3 mb-5">
               {[
-                { doc: 'SH-4 Transfer Form',   securityType: 'Physical share transfer',    status: selectedLoan.nocStatus === 'issued' ? 'returned' : 'held',   returnDate: selectedLoan.repaidOn },
-                { doc: 'Blank Cheque',         securityType: 'Cheque returned to borrower', status: selectedLoan.nocStatus === 'issued' ? 'returned' : 'held',   returnDate: selectedLoan.repaidOn },
-                { doc: 'CDSL Pledge Release',  securityType: 'Demat shares unpledged',      status: selectedLoan.nocStatus === 'issued' ? 'released' : 'pledged', returnDate: selectedLoan.repaidOn },
-                { doc: 'Power of Attorney',    securityType: 'PoA cancelled/returned',      status: selectedLoan.nocStatus === 'issued' ? 'returned' : 'held',   returnDate: selectedLoan.repaidOn },
+                { doc: 'SH-4 Transfer Form',   securityType: 'Physical share transfer',    status: securityComplete ? 'returned' : 'held',   returnDate: securityComplete ? selectedLoan.repaidOn || new Date().toISOString().split('T')[0] : null },
+                { doc: 'Blank Cheque',         securityType: 'Cheque returned to borrower', status: securityComplete ? 'returned' : 'held',   returnDate: securityComplete ? selectedLoan.repaidOn || new Date().toISOString().split('T')[0] : null },
+                { doc: 'CDSL Pledge Release',  securityType: 'Demat shares unpledged',      status: securityComplete ? 'released' : 'pledged', returnDate: securityComplete ? selectedLoan.repaidOn || new Date().toISOString().split('T')[0] : null },
+                { doc: 'Power of Attorney',    securityType: 'PoA cancelled/returned',      status: securityComplete ? 'returned' : 'held',   returnDate: securityComplete ? selectedLoan.repaidOn || new Date().toISOString().split('T')[0] : null },
               ].map(item => (
                 <div key={item.doc} className="flex items-center justify-between p-4 border border-slate-100 rounded-xl hover:bg-slate-50">
                   <div>
@@ -270,9 +313,12 @@ const LoanClosureHub: React.FC = () => {
             </div>
 
             {can('manage_compliance') && selectedLoan.outstanding === 0 && (
-              <button className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors">
+              <button
+                onClick={() => setSecurityReturnConfirmed(true)}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors"
+              >
                 <Shield size={16} />
-                Confirm All Securities Returned
+                {securityReturnConfirmed ? 'Securities Returned' : 'Confirm All Securities Returned'}
               </button>
             )}
           </div>
@@ -319,11 +365,14 @@ const LoanClosureHub: React.FC = () => {
               </div>
             </div>
 
-            {can('manage_documentation') && selectedLoan.status === 'closed' && (
+            {can('manage_documentation') && (selectedLoan.status === 'closed' || loanMarkedClosed) && (
               <div className="flex gap-3">
-                <button className="flex items-center gap-2 bg-slate-700 hover:bg-slate-800 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors">
+                <button
+                  onClick={() => setArchiveCompleted(true)}
+                  className="flex items-center gap-2 bg-slate-700 hover:bg-slate-800 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors"
+                >
                   <Archive size={16} />
-                  Archive Loan Record
+                  {archiveCompleted ? 'Loan Record Archived' : 'Archive Loan Record'}
                 </button>
                 <button className="flex items-center gap-2 border border-slate-200 text-slate-700 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors">
                   <Download size={16} />

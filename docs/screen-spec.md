@@ -4240,6 +4240,41 @@ A build can be considered functionally aligned with the screen specification if:
 
 ---
 
+## S76 — Borrower Portal
+
+### Purpose
+
+Provide a self-service digital portal for SFPCL members and borrowers to track their loan eligibility, initiate applications, manage documents, view loan status, track repayments, and submit grievances.
+
+### Overview Dashboard
+
+- Member profile summary (name, folio, shares held, active status).
+- Outstanding loan snapshot.
+- Next EMI due date and amount.
+- Pending Action alerts (e.g., overdue payments, KYC due, missing documents).
+
+### Navigation / Tabs
+
+1. **Overview**: Dashboard with summary widgets and alerts.
+2. **New Application**: Self-service application initiation mapping to S10 requirements.
+3. **Application Status**: View progress of ongoing applications (S11 mapping).
+4. **Application Data**: Review submitted application details and fields.
+5. **Repayments**: View repayment schedule and history (S43/S44 mapping).
+6. **My Documents**: View and upload required documents (KYC, land records, share certificates) (S21 mapping).
+7. **Loan History**: Access historical and closed loan records.
+8. **Produce Supply**: Track crop supply history to SFPCL for active member status validation.
+9. **Raise Grievance**: Submit and track queries or complaints (S68 mapping).
+
+### Key Actions
+
+- Initiate a new loan request.
+- Respond to document deficiencies.
+- View repayment schedule.
+- Track application approval stages.
+- Raise and track grievances.
+
+---
+
 # 15. Final Product Interpretation
 
 The screen design should make the SOP operationally enforceable. The system should not simply store loan data; it should actively guide users through the required sequence, prevent bypassing mandatory gates and preserve evidence for audit.

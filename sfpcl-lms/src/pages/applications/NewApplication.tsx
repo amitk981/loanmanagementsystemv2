@@ -229,7 +229,7 @@ const NewApplication: React.FC<NewApplicationProps> = ({ onBack }) => {
           </button>
           <div>
             <h1 className="text-xl font-bold text-slate-900">New Loan Application</h1>
-            <p className="text-sm text-slate-500">Assisted entry workflow aligned to borrower portal intake and S10 screen spec.</p>
+            <p className="text-sm text-slate-500">Assisted entry workflow aligned to borrower portal intake.</p>
           </div>
         </div>
         <button onClick={() => setDraftSaved(true)} className="btn-secondary flex items-center gap-2 self-start">

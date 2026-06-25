@@ -19,13 +19,17 @@ const RISK_RATINGS = ['low', 'medium', 'high', 'very_high'] as const;
 
 interface AppraisalWorkbenchProps {
   onOpenApplication: (id: string) => void;
+  initialSelectedId?: string;
 }
 
-const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplication }) => {
+const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplication, initialSelectedId }) => {
   const appraisalQueue = loanApplications.filter(a =>
     ['reference_generated', 'appraisal_pending', 'credit_review'].includes(a.status)
   );
-  const [selected, setSelected] = useState<string | null>(appraisalQueue[0]?.id || null);
+  const initialApp = initialSelectedId ? appraisalQueue.find(a => a.id === initialSelectedId || a.applicationNumber === initialSelectedId) : null;
+  const [selected, setSelected] = useState<string | null>(
+    initialApp?.id || appraisalQueue[0]?.id || null
+  );
   const [noteText, setNoteText] = useState('');
   const [riskRating, setRiskRating] = useState<typeof RISK_RATINGS[number]>('low');
   const [appraisalStep, setAppraisalStep] = useState<'verification' | 'appraisal' | 'submitted'>('verification');
@@ -237,7 +241,7 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
                   {/* Role guidance */}
                   <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-700">
                     <Info size={14} className="flex-shrink-0" />
-                    <span><strong>Step 1:</strong> Deputy Manager – Finance must complete Active Member Verification (S16) and KYC Verification (S17) before appraisal can proceed.</span>
+                    <span><strong>Step 1:</strong> Deputy Manager – Finance must complete Active Member Verification and KYC Verification before appraisal can proceed.</span>
                   </div>
 
                   {/* S16: Active Member Verification */}
@@ -247,7 +251,7 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
                         <Leaf size={16} className={activeMemberVerified ? 'text-green-600' : 'text-amber-600'} />
                       </div>
                       <div>
-                        <h4 className="font-semibold text-slate-800">S16: Active Member Verification</h4>
+                        <h4 className="font-semibold text-slate-800">Active Member Verification</h4>
                         <p className="text-xs text-slate-500">Verify member meets 4-year supply rule or 1-year relaxation</p>
                       </div>
                     </div>
@@ -306,7 +310,7 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
                         <BadgeCheck size={16} className={kycVerified ? 'text-green-600' : 'text-amber-600'} />
                       </div>
                       <div>
-                        <h4 className="font-semibold text-slate-800">S17: KYC Verification</h4>
+                        <h4 className="font-semibold text-slate-800">KYC Verification</h4>
                         <p className="text-xs text-slate-500">Verify PAN, Aadhaar, and CKYC against application documents</p>
                       </div>
                     </div>
@@ -451,7 +455,7 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
                     <div className="flex items-start justify-between gap-3 mb-4">
                       <div>
                         <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                          <Scale size={14} /> S19 Required Appraisal Inputs
+                          <Scale size={14} /> Required Appraisal Inputs
                         </h3>
                         <p className="text-xs text-slate-500 mt-1">These fields make Step 2 functional and feed the Credit Manager review.</p>
                       </div>
@@ -591,13 +595,19 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
                         <button className="btn-secondary text-sm" onClick={() => onOpenApplication(app.id)}>
                           View Full Application
                         </button>
-                        <button
-                          className="btn-primary text-sm disabled:opacity-50"
-                          disabled={!canForwardToSanction}
-                          onClick={() => setAppraisalStep('submitted')}
-                        >
-                          Continue to Forward →
-                        </button>
+                        {can('do_appraisal') ? (
+                          <button
+                            className="btn-primary text-sm disabled:opacity-50"
+                            disabled={!canForwardToSanction}
+                            onClick={() => setAppraisalStep('submitted')}
+                          >
+                            Continue to Forward →
+                          </button>
+                        ) : (
+                          <button className="btn-primary text-sm opacity-50 cursor-not-allowed" disabled title="Deputy Manager Finance or Credit Manager only">
+                            Continue to Forward →
+                          </button>
+                        )}
                       </div>
                     </div>
                     {!canForwardToSanction && (
@@ -663,7 +673,7 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
                   </div>
 
                   <div className="card">
-                    <h3 className="text-sm font-semibold text-slate-700 mb-3">S20 Credit Manager Decision</h3>
+                    <h3 className="text-sm font-semibold text-slate-700 mb-3">Credit Manager Decision</h3>
                     <textarea
                       rows={4}
                       value={creditManagerComment}
@@ -679,27 +689,35 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
                         <RotateCcw size={14} />
                         Return to Appraise
                       </button>
-                      <button
-                        disabled={!creditManagerComment.trim()}
-                        className="bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-4 py-2 rounded-lg transition-colors text-sm flex items-center gap-2"
-                      >
-                        <RefreshCw size={14} />
-                        Request Correction
-                      </button>
-                      <button
-                        disabled={recommendation === 'reject' && !creditManagerComment.trim()}
-                        className="bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-4 py-2 rounded-lg transition-colors text-sm flex items-center gap-2"
-                      >
-                        <XCircle size={14} />
-                        Reject
-                      </button>
-                      <button
-                        disabled={(requiresException || recommendedAmountNumber !== app.eligibleAmount) && !creditManagerComment.trim()}
-                        className="btn-primary text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <Send size={14} />
-                        {requiresException ? 'Forward Exception to Sanction Committee' : 'Forward to Sanction Committee'}
-                      </button>
+                      {can('do_completeness_check') ? (
+                        <>
+                          <button
+                            disabled={!creditManagerComment.trim()}
+                            className="bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-4 py-2 rounded-lg transition-colors text-sm flex items-center gap-2"
+                          >
+                            <RefreshCw size={14} />
+                            Request Correction
+                          </button>
+                          <button
+                            disabled={recommendation === 'reject' && !creditManagerComment.trim()}
+                            className="bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-4 py-2 rounded-lg transition-colors text-sm flex items-center gap-2"
+                          >
+                            <XCircle size={14} />
+                            Reject
+                          </button>
+                          <button
+                            disabled={(requiresException || recommendedAmountNumber !== app.eligibleAmount) && !creditManagerComment.trim()}
+                            className="btn-primary text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Send size={14} />
+                            {requiresException ? 'Forward Exception to Sanction Committee' : 'Forward to Sanction Committee'}
+                          </button>
+                        </>
+                      ) : (
+                        <div className="text-sm text-amber-700 bg-amber-50 p-2 rounded border border-amber-200 ml-auto">
+                          Waiting for Credit Manager review and forwarding.
+                        </div>
+                      )}
                     </div>
                     <div className="mt-4 text-xs text-slate-500">
                       Forwarding preserves the appraisal note, risk rationale, recommended amount, conditions and document evidence for audit.

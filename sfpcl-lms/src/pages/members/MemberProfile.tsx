@@ -36,6 +36,14 @@ const servicesAvailed = [
   { service: 'Agricultural Input Purchase', date: '2024-02-15', entity: 'Sahyadri Farms PHC', type: 'Input Purchase' },
 ];
 
+// ─── Communications Log ───────────────────────────────────────────────────────
+const communicationsLog = [
+  { date: '2026-06-15', type: 'SMS', direction: 'Outbound', message: 'EMI reminder: ₹1,05,000 due on 30 Jun 2025. Pay on time to avoid penalty.', sentBy: 'System' },
+  { date: '2026-06-01', type: 'Email', direction: 'Outbound', message: 'Loan sanction approval notification with sanction letter attached.', sentBy: 'Priya Kulkarni' },
+  { date: '2026-05-22', type: 'Call', direction: 'Inbound', message: 'Borrower called to query about interest calculation. Clarified principal-first allocation.', sentBy: 'Priya Kulkarni' },
+  { date: '2026-04-10', type: 'Letter', direction: 'Outbound', message: 'Hard copy of Loan Agreement dispatched by registered post. Tracking: RM123456789IN.', sentBy: 'Aarti Desai' },
+];
+
 // ─── Land & Crop Evidence ─────────────────────────────────────────────────────
 const landCropEvidence = [
   { doc: '7/12 Extract', land: '4.5 acres', crop: 'Grapes', season: 'Kharif 2024', uploaded: true, date: '2026-06-10' },
@@ -81,6 +89,7 @@ const MemberProfile: React.FC<MemberProfileProps> = ({ memberId, onBack }) => {
     { id: 'kyc',       label: 'KYC' },
     { id: 'loans',     label: 'Loans', badge: memberApps.length + memberLoans.length > 0 ? memberApps.length + memberLoans.length : undefined },
     { id: 'nominee',   label: 'Nominee' },
+    { id: 'comms',     label: 'Communications' },
     { id: 'exposure',  label: 'Exposure & Limits' },
     { id: 'audit',     label: 'Audit Trail' },
   ];
@@ -482,7 +491,34 @@ const MemberProfile: React.FC<MemberProfileProps> = ({ memberId, onBack }) => {
           </div>
         </div>
 
-        {/* ── Tab 8: Exposure & Limits ── */}
+        {/* ── Tab 8: Communications ── */}
+        <div className="card p-0 overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+            <h3 className="font-semibold text-slate-800">Communications Log</h3>
+            <button className="flex items-center gap-1 text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg transition-colors">
+              <MessageSquare size={12} /> Add Entry
+            </button>
+          </div>
+          <div className="divide-y divide-slate-50">
+            {communicationsLog.map((c, i) => (
+              <div key={i} className="flex gap-4 px-6 py-4 hover:bg-slate-50">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${c.type === 'SMS' ? 'bg-blue-50' : c.type === 'Email' ? 'bg-green-50' : c.type === 'Call' ? 'bg-amber-50' : 'bg-slate-100'}`}>
+                  <MessageSquare size={14} className="text-slate-500" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">{c.type}</span>
+                    <span className="text-xs text-slate-400">{c.direction}</span>
+                  </div>
+                  <p className="text-sm text-slate-700 mt-1">{c.message}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{c.sentBy} · {new Date(c.date).toLocaleDateString('en-IN')}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Tab 9: Exposure & Limits ── */}
         <div className="card space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
@@ -523,7 +559,7 @@ const MemberProfile: React.FC<MemberProfileProps> = ({ memberId, onBack }) => {
           </div>
         </div>
 
-        {/* ── Tab 9: Audit Trail ── */}
+        {/* ── Tab 10: Audit Trail ── */}
         <div className="card p-0 overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
             <h3 className="font-semibold text-slate-800">Member Audit Trail</h3>

@@ -33,8 +33,12 @@ const DefaultRecoveryHub: React.FC = () => {
   const [selectedCase, setSelectedCase] = useState<DefaultCase | null>(defaultCases[0]);
   const [extensionReason, setExtensionReason] = useState('');
   const [nonPaymentNote, setNonPaymentNote] = useState('');
-  const [showApproveModal, setShowApproveModal] = useState(false);
-  const [recoveryApproved, setRecoveryApproved] = useState(false);
+  const [extensionSubmitted, setExtensionSubmitted] = useState(false);
+  const [nonPaymentSubmitted, setNonPaymentSubmitted] = useState(false);
+  const [recoveryApproved, setRecoveryApproved] = useState(true);
+  const [invokedSecurities, setInvokedSecurities] = useState<string[]>(['SH-4 (share transfer to company)']);
+  const [recoveryLogged, setRecoveryLogged] = useState(false);
+  const [borrowerNoticeSent, setBorrowerNoticeSent] = useState(false);
 
   const tabs: { id: DefaultTab; label: string; badge?: number }[] = [
     { id: 'cases',       label: 'Default Cases',        badge: defaultCases.length },
@@ -42,6 +46,22 @@ const DefaultRecoveryHub: React.FC = () => {
     { id: 'non_payment', label: 'Non-Payment Note' },
     { id: 'recovery',    label: 'Recovery Approval' },
     { id: 'security',    label: 'Security Invocation' },
+  ];
+
+  const toggleInvocation = (item: string) => {
+    setInvokedSecurities(current =>
+      current.includes(item)
+        ? current.filter(value => value !== item)
+        : [...current, item]
+    );
+  };
+
+  const workflowImpact = [
+    { label: 'DPD Monitoring', status: 'updated', note: 'Selected loan remains visible in overdue and DPD review queues.' },
+    { label: 'Recovery Log', status: recoveryLogged ? 'updated' : nonPaymentSubmitted ? 'pending_update' : 'not_started', note: recoveryLogged ? 'Invocation action has a local recovery-log entry.' : 'Log entry is staged after non-payment and invocation action.' },
+    { label: 'Security Register', status: recoveryLogged ? 'invocation_recorded' : invokedSecurities.length > 0 ? 'invocation_selected' : 'not_started', note: invokedSecurities.length > 0 ? invokedSecurities.join(', ') : 'No security selected for invocation.' },
+    { label: 'Borrower Notice', status: borrowerNoticeSent ? 'sent' : recoveryLogged ? 'ready_to_send' : 'not_started', note: borrowerNoticeSent ? 'Borrower-facing recovery notice is staged for MP19.' : 'Notice appears after recovery action is recorded.' },
+    { label: 'Audit Trail', status: recoveryLogged || nonPaymentSubmitted || extensionSubmitted ? 'events_staged' : 'not_started', note: `Prototype actor: ${currentUser.name}` },
   ];
 
   return (
@@ -87,6 +107,27 @@ const DefaultRecoveryHub: React.FC = () => {
                 </span>
               )}
             </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-white border border-slate-200 rounded-xl p-4 mb-6">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900">Prototype Workflow Impact</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Local UI state preview for recovery, registers, notices and audit.</p>
+          </div>
+          <StatusBadge label={recoveryLogged ? 'recovery_in_progress' : recoveryApproved ? 'recovery_approved' : 'default_review'} size="sm" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+          {workflowImpact.map(item => (
+            <div key={item.label} className="rounded-lg bg-slate-50 border border-slate-100 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-slate-700">{item.label}</p>
+                <StatusBadge label={item.status} size="sm" />
+              </div>
+              <p className="text-xs text-slate-500 mt-2">{item.note}</p>
+            </div>
           ))}
         </div>
       </div>
@@ -156,10 +197,10 @@ const DefaultRecoveryHub: React.FC = () => {
                   {[
                     { step: '1', label: 'Reminder issued (call/SMS)',        done: true },
                     { step: '2', label: 'Grace period started (90 days)',    done: selectedCase.overdueDays > 30 },
-                    { step: '3', label: 'Extension note (if applicable)',    done: false },
-                    { step: '4', label: 'Non-payment note to Sanction Committee', done: selectedCase.status === 'recovery_approved' },
-                    { step: '5', label: 'Recovery action approved',          done: selectedCase.status === 'recovery_approved' },
-                    { step: '6', label: 'Security invocation / legal action',done: false },
+                    { step: '3', label: 'Extension note (if applicable)',    done: extensionSubmitted },
+                    { step: '4', label: 'Non-payment note to Sanction Committee', done: nonPaymentSubmitted || selectedCase.status === 'recovery_approved' },
+                    { step: '5', label: 'Recovery action approved',          done: recoveryApproved || selectedCase.status === 'recovery_approved' },
+                    { step: '6', label: 'Security invocation / legal action',done: recoveryLogged },
                   ].map(s => (
                     <div key={s.step} className="flex items-center gap-3">
                       <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${
@@ -245,9 +286,13 @@ const DefaultRecoveryHub: React.FC = () => {
                 </div>
               </div>
               {can('manage_defaults') && (
-                <button className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors">
+                <button
+                  onClick={() => setExtensionSubmitted(true)}
+                  disabled={!extensionReason}
+                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
+                >
                   <FileText size={16} />
-                  Submit Extension Note
+                  {extensionSubmitted ? 'Extension Note Submitted' : 'Submit Extension Note'}
                 </button>
               )}
             </div>
@@ -303,9 +348,16 @@ const DefaultRecoveryHub: React.FC = () => {
                 </div>
               </div>
               {(can('manage_defaults') || can('do_appraisal')) && (
-                <button className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors">
+                <button
+                  onClick={() => {
+                    setNonPaymentSubmitted(true);
+                    setActiveTab('recovery');
+                  }}
+                  disabled={!nonPaymentNote}
+                  className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
+                >
                   <MessageSquare size={16} />
-                  Submit to Sanction Committee
+                  {nonPaymentSubmitted ? 'Submitted to Sanction Committee' : 'Submit to Sanction Committee'}
                 </button>
               )}
             </div>
@@ -365,7 +417,7 @@ const DefaultRecoveryHub: React.FC = () => {
                   <textarea rows={3} placeholder="CFO remarks on recovery decision…" className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none" />
                 </div>
                 <button
-                  onClick={() => { setRecoveryApproved(true); setShowApproveModal(false); }}
+                  onClick={() => setRecoveryApproved(true)}
                   className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors"
                 >
                   <Gavel size={16} />
@@ -407,7 +459,12 @@ const DefaultRecoveryHub: React.FC = () => {
                 <div className="space-y-2">
                   {['SH-4 (share transfer to company)', 'Blank cheque presentment', 'Both SH-4 and blank cheque'].map(opt => (
                     <label key={opt} className="flex items-center gap-3 text-sm cursor-pointer p-3 rounded-lg border border-slate-100 hover:bg-slate-50">
-                      <input type="checkbox" className="accent-green-600" />
+                      <input
+                        type="checkbox"
+                        checked={invokedSecurities.includes(opt)}
+                        onChange={() => toggleInvocation(opt)}
+                        className="accent-green-600"
+                      />
                       {opt}
                     </label>
                   ))}
@@ -423,9 +480,16 @@ const DefaultRecoveryHub: React.FC = () => {
               </div>
               {can('manage_compliance') && (
                 <div className="flex gap-3">
-                  <button className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors">
+                  <button
+                    onClick={() => {
+                      setRecoveryLogged(true);
+                      setBorrowerNoticeSent(true);
+                    }}
+                    disabled={!recoveryApproved || invokedSecurities.length === 0}
+                    className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
+                  >
                     <Shield size={16} />
-                    Invoke Security
+                    {recoveryLogged ? 'Invocation Recorded' : 'Invoke Security'}
                   </button>
                   <button className="flex items-center gap-2 border border-slate-200 text-slate-700 px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors">
                     <FileText size={16} />

@@ -67,7 +67,7 @@ interface ApplicationDetailProps {
 const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   applicationId, onBack, onNavigateMember,
 }) => {
-  const app = loanApplications.find(a => a.id === applicationId) || loanApplications[0];
+  const app = loanApplications.find(a => a.id === applicationId || a.applicationNumber === applicationId) || loanApplications[0];
   const member = members.find(m => m.id === app.memberId);
   const appSecurities = securities.filter(s => s.applicationId === applicationId);
   const { can, currentUser } = useRole();
@@ -602,7 +602,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
               <div className="flex items-start gap-3">
                 <Shield size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <h4 className="font-semibold text-slate-800 mb-2">Special Case Approval Requirements (S24)</h4>
+                  <h4 className="font-semibold text-slate-800 mb-2">Special Case Approval Requirements</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mb-4">
                     {[
                       { label: 'Special Case Type', value: 'Director / Relative / Committee Member' },

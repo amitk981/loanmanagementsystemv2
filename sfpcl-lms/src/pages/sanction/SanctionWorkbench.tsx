@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   Gavel, ChevronRight, Check, AlertOctagon, Shield, CheckCircle2,
   XCircle, AlertTriangle, MessageSquare, Download, Clock, Info,
-  UserCheck, ArrowRight, Scale
+  UserCheck, ArrowRight, Scale, AlertCircle
 } from 'lucide-react';
 import StatusBadge from '../../components/ui/StatusBadge';
 import AlertBanner from '../../components/ui/AlertBanner';
@@ -28,16 +28,21 @@ const REJECTION_REASONS = [
 
 interface SanctionWorkbenchProps {
   onOpenApplication: (id: string) => void;
+  initialSelectedId?: string;
 }
 
-const SanctionWorkbench: React.FC<SanctionWorkbenchProps> = ({ onOpenApplication }) => {
+const SanctionWorkbench: React.FC<SanctionWorkbenchProps> = ({ onOpenApplication, initialSelectedId }) => {
+  const { can } = useRole();
   const sanctionQueue = loanApplications.filter(a =>
     a.status === 'pending_sanction' || a.status === 'credit_review'
   );
   const exceptions = loanApplications.filter(a => a.isException);
   const specialCases = loanApplications.filter(a => a.specialCase);
 
-  const [selected, setSelected] = useState<string | null>(sanctionQueue[0]?.id || null);
+  const initialApp = initialSelectedId ? sanctionQueue.find(a => a.id === initialSelectedId || a.applicationNumber === initialSelectedId) : null;
+  const [selected, setSelected] = useState<string | null>(
+    initialApp?.id || sanctionQueue[0]?.id || null
+  );
   const [sanctionDecision, setSanctionDecision] = useState<Record<string, 'approved' | 'rejected' | 'abstained' | null>>({});
   const [abstainReason, setAbstainReason] = useState<Record<string, string>>({});
   const [rejectionCategory, setRejectionCategory] = useState<Record<string, string>>({});
@@ -165,9 +170,9 @@ const SanctionWorkbench: React.FC<SanctionWorkbenchProps> = ({ onOpenApplication
                     <p className="text-xs text-slate-500">Eligible</p>
                     <p className="text-base font-bold num text-slate-900">{fmt(app.eligibleAmount)}</p>
                   </div>
-                  <div className={`rounded-lg p-3 ${app.riskRating === 'high' || app.riskRating === 'very_high' ? 'bg-red-50' : app.riskRating === 'medium' ? 'bg-amber-50' : 'bg-green-50'}`}>
+                  <div className={`rounded-lg p-3 ${(app.riskRating as string) === 'high' ? 'bg-red-50' : app.riskRating === 'medium' ? 'bg-amber-50' : 'bg-green-50'}`}>
                     <p className="text-xs text-slate-500">Risk Rating</p>
-                    <p className={`text-base font-bold capitalize ${app.riskRating === 'high' || app.riskRating === 'very_high' ? 'text-red-900' : app.riskRating === 'medium' ? 'text-amber-900' : 'text-green-900'}`}>
+                    <p className={`text-base font-bold capitalize ${(app.riskRating as string) === 'high' ? 'text-red-900' : app.riskRating === 'medium' ? 'text-amber-900' : 'text-green-900'}`}>
                       {app.riskRating || '—'}
                     </p>
                   </div>
@@ -176,6 +181,9 @@ const SanctionWorkbench: React.FC<SanctionWorkbenchProps> = ({ onOpenApplication
                 {app.isException && (
                   <div className="mt-3">
                     <AlertBanner type="exception" title="Exception — Amount exceeds eligible limit" message={app.exceptionReason || ''} />
+                    {(app.riskRating as string) === 'high' && (
+                      <AlertBanner type="warning" title="High Risk" message="This application is marked as high risk by Credit Manager." />
+                    )}
                   </div>
                 )}
               </div>
@@ -186,7 +194,7 @@ const SanctionWorkbench: React.FC<SanctionWorkbenchProps> = ({ onOpenApplication
                   <div className="flex items-start gap-3">
                     <Shield size={20} className="text-amber-600 flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
-                      <h4 className="font-semibold text-amber-900 mb-3">Special Case Requirements (S24) — Full Quorum Required</h4>
+                      <h4 className="font-semibold text-amber-900 mb-3">Special Case Requirements — Full Quorum Required</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                         {[
                           { label: 'Case Type', value: 'Director / Relative / Committee Member' },
@@ -292,33 +300,39 @@ const SanctionWorkbench: React.FC<SanctionWorkbenchProps> = ({ onOpenApplication
                         />
                       </div>
                     </div>
+                    {can('approve_sanction') ? (
+                      <div className="flex gap-3 flex-wrap">
+                        {/* Approve */}
+                        <button
+                          onClick={() => setSanctionDecision(p => ({ ...p, [app.id]: 'approved' }))}
+                          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm px-4 py-2.5 rounded-xl font-semibold transition-colors"
+                        >
+                          <CheckCircle2 size={16} /> Approve
+                        </button>
 
-                    <div className="flex gap-3 flex-wrap">
-                      {/* Approve */}
-                      <button
-                        onClick={() => setSanctionDecision(p => ({ ...p, [app.id]: 'approved' }))}
-                        className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm px-4 py-2.5 rounded-xl font-semibold transition-colors"
-                      >
-                        <CheckCircle2 size={16} /> Approve
-                      </button>
+                        {/* Reject — requires reason */}
+                        <button
+                          onClick={() => setSanctionDecision(p => ({ ...p, [app.id]: 'rejected' }))}
+                          className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2.5 rounded-xl font-semibold transition-colors"
+                        >
+                          <XCircle size={16} /> Reject
+                        </button>
 
-                      {/* Reject — requires reason */}
-                      <button
-                        onClick={() => setSanctionDecision(p => ({ ...p, [app.id]: 'rejected' }))}
-                        className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2.5 rounded-xl font-semibold transition-colors"
-                      >
-                        <XCircle size={16} /> Reject
-                      </button>
-
-                      {/* Abstain — Director only, conflict of interest */}
-                      <button
-                        onClick={() => setSanctionDecision(p => ({ ...p, [app.id]: 'abstained' }))}
-                        className="flex items-center gap-2 bg-slate-400 hover:bg-slate-500 text-white text-sm px-4 py-2.5 rounded-xl font-semibold transition-colors"
-                        title="For Directors with conflict of interest"
-                      >
-                        <Scale size={16} /> Abstain (Conflict of Interest)
-                      </button>
-                    </div>
+                        {/* Abstain — Director only, conflict of interest */}
+                        <button
+                          onClick={() => setSanctionDecision(p => ({ ...p, [app.id]: 'abstained' }))}
+                          className="flex items-center gap-2 bg-slate-400 hover:bg-slate-500 text-white text-sm px-4 py-2.5 rounded-xl font-semibold transition-colors"
+                          title="For Directors with conflict of interest"
+                        >
+                          <Scale size={16} /> Abstain (Conflict of Interest)
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3 rounded-lg flex items-center gap-2">
+                        <AlertCircle size={16} />
+                        You do not have permission to approve or reject this sanction. The Sanction Committee must take action.
+                      </div>
+                    )}
                   </div>
                 )}
 
