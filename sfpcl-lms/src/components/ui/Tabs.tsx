@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 export interface Tab {
   id: string;
   label: string;
-  badge?: number;
+  badge?: number | string;
+  badgeStyle?: 'success' | 'neutral' | 'warning';
   icon?: React.ReactNode;
 }
 
@@ -48,7 +49,7 @@ const Tabs: React.FC<TabsProps> = ({ tabs, children, defaultTab, activeIndex, on
               {tab.icon}
               {tab.label}
               {tab.badge !== undefined && (
-                <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${active === tab.id ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${tab.badgeStyle === 'neutral' ? 'bg-slate-100 text-slate-600' : tab.badgeStyle === 'warning' ? 'bg-amber-100 text-amber-700' : (active === tab.id ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600')}`}>
                   {tab.badge}
                 </span>
               )}

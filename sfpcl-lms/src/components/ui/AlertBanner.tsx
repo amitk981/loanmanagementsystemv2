@@ -6,7 +6,7 @@ type AlertType = 'info' | 'warning' | 'error' | 'success' | 'exception';
 interface AlertBannerProps {
   type: AlertType;
   title: string;
-  message?: string;
+  message?: React.ReactNode;
   onDismiss?: () => void;
   actions?: React.ReactNode;
 }

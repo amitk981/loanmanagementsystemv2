@@ -28,6 +28,7 @@ const eventColors: Record<string, string> = {
 interface AuditTimelineProps {
   entityId: string;
   limit?: number;
+  sensitiveVisible?: boolean;
 }
 
 const formatTime = (ts: string) => {
@@ -35,6 +36,8 @@ const formatTime = (ts: string) => {
   return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) +
     ' at ' + d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 };
+
+const formatState = (s: string) => s.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 
 const roleLabels: Record<string, string> = {
   field_officer: 'Field Officer',
@@ -54,7 +57,14 @@ const roleLabels: Record<string, string> = {
   borrower: 'Borrower / Member',
 };
 
-const AuditTimeline: React.FC<AuditTimelineProps> = ({ entityId, limit = 20 }) => {
+const maskText = (text: string, visible?: boolean) => {
+  if (visible) return text;
+  return text
+    .replace(/(ref |SN-|DP-|SR-)([A-Z0-9-]*?)([0-9]{4})\b/ig, '$1••••$3')
+    .replace(/(PAN|Aadhaar|Account)[ \w-]*?([0-9]{4})\b/ig, '$1 ••••$2');
+};
+
+const AuditTimeline: React.FC<AuditTimelineProps> = ({ entityId, limit = 20, sensitiveVisible }) => {
   const events = auditEvents.filter(e => e.entityId === entityId).slice(0, limit);
 
   if (events.length === 0) {
@@ -85,25 +95,25 @@ const AuditTimeline: React.FC<AuditTimelineProps> = ({ entityId, limit = 20 }) =
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <span className="text-sm font-semibold text-slate-900">{event.eventType}</span>
-                  {event.previousState && event.newState && (
-                    <span className="text-xs text-slate-400 ml-2">
-                      {event.previousState} → {event.newState}
-                    </span>
-                  )}
                 </div>
                 <span className="text-xs text-slate-400 flex-shrink-0">{formatTime(event.timestamp)}</span>
               </div>
+              {event.previousState && event.newState && (
+                <div className="mt-1 text-xs text-slate-500 font-medium">
+                  Status changed from {formatState(event.previousState)} to {formatState(event.newState)}.
+                </div>
+              )}
               <div className="text-xs text-slate-500 mt-0.5">
                 {event.actorName} · {roleLabels[event.actorRole] || event.actorRole}
               </div>
               {event.comment && (
                 <div className="mt-1.5 text-xs text-slate-600 bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
-                  "{event.comment}"
+                  {maskText(event.comment, sensitiveVisible)}
                 </div>
               )}
               {event.reason && (
                 <div className="mt-1 text-xs text-amber-700 bg-amber-50 rounded px-2 py-1">
-                  Reason: {event.reason}
+                  Reason: {maskText(event.reason, sensitiveVisible)}
                 </div>
               )}
             </div>

@@ -5,7 +5,7 @@ import type { DocumentRecord, SecurityInstrument, ShareMode } from '../../types'
 import { documents, securities } from '../../data/mockData';
 
 type Requirement = 'mandatory' | 'conditional' | 'not_required';
-type CompactState = 'not_required' | 'pending' | 'uploaded' | 'signed' | 'complete' | 'verified' | 'blocked';
+type CompactState = 'verified' | 'pending' | 'uploaded' | 'signed' | 'not_required' | 'blocked' | 'waived';
 
 interface ChecklistRow {
   id: string;
@@ -46,7 +46,13 @@ const compactStatus = (doc?: DocumentRecord): CompactState => {
   return 'pending';
 };
 
-const mask = (value: string, visible?: boolean) => visible ? value : value.replace(/[A-Z0-9]/g, '•');
+const maskGeneric = (val: string) => val.length > 4 ? '•'.repeat(4) + val.slice(-4) : '•'.repeat(val.length);
+const mask = (value: string, type: 'pan' | 'aadhaar' | 'acct' | 'ifsc' | 'ref', visible?: boolean) => {
+  if (visible) return value;
+  if (type === 'ifsc' && value.length > 4) return value.slice(0, 4) + '••••' + value.slice(-3);
+  return maskGeneric(value);
+};
+
 const isDocVerified = (doc?: DocumentRecord) => !!doc && ['verified', 'complete', 'notarised'].includes(doc.status);
 const verifiedTrail = (doc?: DocumentRecord) =>
   doc?.verifiedBy && doc.verifiedAt ? `${doc.verifiedBy} · ${new Date(doc.verifiedAt).toLocaleDateString('en-IN')}` : '';
@@ -102,9 +108,9 @@ const DocumentChecklist: React.FC<DocumentChecklistProps> = ({
       stampStatus: 'not_required',
       notaryStatus: 'not_required',
       verificationStatus: isDocVerified(pan) && isDocVerified(aadhaar) ? 'verified' : 'pending',
-      evidence: `${mask('ABCDE1234F', sensitiveVisible)} / Aadhaar ${mask('4521', sensitiveVisible)}`,
+      evidence: `${mask('ABCDE1234F', 'pan', sensitiveVisible)} / Aadhaar ${mask('452188884521', 'aadhaar', sensitiveVisible)}`,
       deficiency: pan && aadhaar ? verifiedTrail(pan) || '-' : 'Borrower KYC pending',
-      nextAction: pan && aadhaar ? 'View' : 'Upload',
+      nextAction: isDocVerified(pan) && isDocVerified(aadhaar) ? 'View' : 'Upload',
       prerequisitesComplete: isDocVerified(pan) && isDocVerified(aadhaar),
     },
     {
@@ -117,9 +123,9 @@ const DocumentChecklist: React.FC<DocumentChecklistProps> = ({
       stampStatus: 'not_required',
       notaryStatus: 'not_required',
       verificationStatus: isDocVerified(nomineePan) && isDocVerified(nomineeAadhaar) ? 'verified' : 'pending',
-      evidence: `${mask('FGHIJ5678K', sensitiveVisible)} / Aadhaar ${mask('7789', sensitiveVisible)}`,
+      evidence: `${mask('FGHIJ5678K', 'pan', sensitiveVisible)} / Aadhaar ${mask('778944447789', 'aadhaar', sensitiveVisible)}`,
       deficiency: nomineePan && nomineeAadhaar ? verifiedTrail(nomineePan) || '-' : 'Nominee KYC pending',
-      nextAction: nomineePan && nomineeAadhaar ? 'View' : 'Upload',
+      nextAction: isDocVerified(nomineePan) && isDocVerified(nomineeAadhaar) ? 'View' : 'Upload',
       prerequisitesComplete: isDocVerified(nomineePan) && isDocVerified(nomineeAadhaar),
     },
     {
@@ -132,9 +138,9 @@ const DocumentChecklist: React.FC<DocumentChecklistProps> = ({
       stampStatus: 'not_required',
       notaryStatus: 'not_required',
       verificationStatus: isDocVerified(witnessPan) && isDocVerified(witnessAadhaar) ? 'verified' : 'pending',
-      evidence: `${mask('WITNS1234Q', sensitiveVisible)} / shareholder check`,
+      evidence: `${mask('WITNS1234Q', 'pan', sensitiveVisible)} / shareholder check`,
       deficiency: isDocVerified(witnessPan) && isDocVerified(witnessAadhaar) ? verifiedTrail(witnessPan) || '-' : 'Witness shareholder validation pending',
-      nextAction: 'Verify',
+      nextAction: isDocVerified(witnessPan) && isDocVerified(witnessAadhaar) ? 'View' : 'Verify',
       prerequisitesComplete: isDocVerified(witnessPan) && isDocVerified(witnessAadhaar),
     },
     {
@@ -147,9 +153,9 @@ const DocumentChecklist: React.FC<DocumentChecklistProps> = ({
       stampStatus: 'not_required',
       notaryStatus: 'not_required',
       verificationStatus: compactStatus(cancelledCheque),
-      evidence: `Acct ${mask('1234', sensitiveVisible)} / IFSC RATN••••001`,
+      evidence: `Acct ${mask('99990001', 'acct', sensitiveVisible)} / IFSC ${mask('RATN0000001', 'ifsc', sensitiveVisible)}`,
       deficiency: compactStatus(cancelledCheque) === 'verified' ? verifiedTrail(cancelledCheque) || '-' : 'Bank proof pending',
-      nextAction: compactStatus(cancelledCheque) === 'verified' ? 'View' : 'Upload',
+      nextAction: 'View',
       prerequisitesComplete: compactStatus(cancelledCheque) === 'verified',
     },
     {
@@ -162,9 +168,9 @@ const DocumentChecklist: React.FC<DocumentChecklistProps> = ({
       stampStatus: 'not_required',
       notaryStatus: 'not_required',
       verificationStatus: compactStatus(blankCheque),
-      evidence: `Custody ref ${mask('BCHQ-0042', sensitiveVisible)}`,
+      evidence: `Custody ref ${mask('BCHQ-0042', 'ref', sensitiveVisible)}`,
       deficiency: compactStatus(blankCheque) === 'verified' ? verifiedTrail(blankCheque) || '-' : 'Custody not logged',
-      nextAction: compactStatus(blankCheque) === 'verified' ? 'View' : 'Log custody',
+      nextAction: 'View',
       prerequisitesComplete: compactStatus(blankCheque) === 'verified',
     },
     {
@@ -172,14 +178,14 @@ const DocumentChecklist: React.FC<DocumentChecklistProps> = ({
       name: 'Power of Attorney',
       required: 'mandatory',
       owner: 'Compliance / CS',
-      status: compactStatus(poa),
+      status: compactStatus(poa) === 'verified' ? 'verified' : 'pending',
       signatureStatus: poa?.status === 'signed' || compactStatus(poa) === 'verified' ? 'signed' : 'pending',
-      stampStatus: poa?.stampStatus === 'complete' ? 'complete' : 'pending',
-      notaryStatus: poa?.notarisationStatus === 'complete' ? 'complete' : 'pending',
+      stampStatus: poa?.stampStatus === 'complete' ? 'verified' : 'pending',
+      notaryStatus: poa?.notarisationStatus === 'complete' ? 'verified' : 'pending',
       verificationStatus: compactStatus(poa) === 'verified' ? 'verified' : 'pending',
-      evidence: 'PoA draft / custody CS cabinet A',
+      evidence: poa?.status === 'signed' && (poa?.stampStatus !== 'complete' || poa?.notarisationStatus !== 'complete') ? 'Signature complete · Stamp pending · Notary pending · CS verification pending' : 'PoA draft / custody CS cabinet A',
       deficiency: poa?.stampStatus === 'complete' && poa?.notarisationStatus === 'complete' ? verifiedTrail(poa) || '-' : 'Stamp or notary pending',
-      nextAction: poa?.stampStatus !== 'complete' ? 'Mark stamped' : 'Mark notarised',
+      nextAction: compactStatus(poa) === 'verified' ? 'View' : (poa?.status === 'signed' ? 'Mark stamped' : 'Locked (signature pending)'),
       prerequisitesComplete: compactStatus(poa) === 'verified' && poa?.stampStatus === 'complete' && poa?.notarisationStatus === 'complete',
     },
     {
@@ -194,12 +200,12 @@ const DocumentChecklist: React.FC<DocumentChecklistProps> = ({
       verificationStatus: subsidiaryRepayment ? compactStatus(triParty) : 'not_required',
       evidence: subsidiaryRepayment ? 'Subsidiary deduction agreement' : '-',
       deficiency: subsidiaryRepayment && compactStatus(triParty) !== 'verified' ? 'All party signatures pending' : verifiedTrail(triParty) || '-',
-      nextAction: subsidiaryRepayment ? 'Upload signed' : 'None',
+      nextAction: subsidiaryRepayment ? (compactStatus(triParty) === 'verified' ? 'View' : 'Upload') : 'No action',
       prerequisitesComplete: !subsidiaryRepayment || compactStatus(triParty) === 'verified',
     },
     {
       id: 'sh4',
-      name: 'SH-4 Physical Share Security',
+      name: 'SH-4 physical share security',
       required: shareMode === 'physical' ? 'conditional' : 'not_required',
       owner: 'Company Secretary',
       status: shareMode === 'physical' ? (sh4Ready ? 'verified' : compactStatus(sh4)) : 'not_required',
@@ -207,14 +213,14 @@ const DocumentChecklist: React.FC<DocumentChecklistProps> = ({
       stampStatus: 'not_required',
       notaryStatus: 'not_required',
       verificationStatus: shareMode === 'physical' ? compactStatus(sh4) : 'not_required',
-      evidence: shareMode === 'physical' ? `Folio ${mask('FO-0334', sensitiveVisible)} / cert ${mask('SC-7781', sensitiveVisible)}` : '-',
+      evidence: shareMode === 'physical' ? `Folio ${mask('FO-0334', 'ref', sensitiveVisible)} / cert ${mask('SC-7781', 'ref', sensitiveVisible)}` : '-',
       deficiency: shareMode === 'physical' && !sh4Ready ? 'Witness signature or custody pending' : verifiedTrail(sh4) || '-',
-      nextAction: shareMode === 'physical' ? 'Assign custody' : 'None',
+      nextAction: shareMode === 'physical' ? (sh4Ready ? 'View' : 'Assign custody') : 'No action',
       prerequisitesComplete: sh4Ready,
     },
     {
       id: 'cdsl',
-      name: 'CDSL pledge',
+      name: 'CDSL pledge acceptance pending',
       required: shareMode === 'demat' ? 'conditional' : 'not_required',
       owner: 'Company Secretary',
       status: shareMode === 'demat' ? (cdslReady ? 'verified' : 'pending') : 'not_required',
@@ -222,10 +228,10 @@ const DocumentChecklist: React.FC<DocumentChecklistProps> = ({
       stampStatus: 'not_required',
       notaryStatus: 'not_required',
       verificationStatus: shareMode === 'demat' ? (cdslReady ? 'verified' : 'pending') : 'not_required',
-      evidence: shareMode === 'demat' ? `BO ${mask('120816000042', sensitiveVisible)} / PSN ${cdslSecurity?.psnNumber ? mask(cdslSecurity.psnNumber, sensitiveVisible) : 'pending'}` : '-',
+      evidence: shareMode === 'demat' ? `BO ${mask('120816000042', 'ref', sensitiveVisible)} / PSN ${cdslSecurity?.psnNumber ? mask(cdslSecurity.psnNumber, 'ref', sensitiveVisible) : 'pending'}` : 'Physical shares selected',
       deficiency: shareMode === 'demat' && !cdslReady ? 'DP acceptance pending' : '-',
-      nextAction: shareMode === 'demat' && !cdslReady ? 'Enter PSN' : 'View',
-      prerequisitesComplete: cdslReady,
+      nextAction: shareMode === 'demat' ? (cdslReady ? 'View' : 'Verify acceptance') : 'No action',
+      prerequisitesComplete: shareMode === 'physical' || cdslReady,
     },
     {
       id: 'term-sheet',
@@ -249,12 +255,12 @@ const DocumentChecklist: React.FC<DocumentChecklistProps> = ({
       owner: 'Compliance / CS',
       status: compactStatus(loanAgreement),
       signatureStatus: compactStatus(loanAgreement) === 'verified' ? 'signed' : 'pending',
-      stampStatus: loanAgreement?.stampStatus === 'complete' ? 'complete' : 'pending',
-      notaryStatus: loanAgreement?.notarisationStatus === 'complete' ? 'complete' : 'pending',
+      stampStatus: loanAgreement?.stampStatus === 'complete' ? 'verified' : 'pending',
+      notaryStatus: loanAgreement?.notarisationStatus === 'complete' ? 'verified' : 'pending',
       verificationStatus: compactStatus(loanAgreement),
-      evidence: `Stamp ${mask('E-STAMP-2026-0043', sensitiveVisible)}`,
+      evidence: `Stamp ${mask('ESTAMP-2026-0043', 'ref', sensitiveVisible)}`,
       deficiency: compactStatus(loanAgreement) === 'verified' ? verifiedTrail(loanAgreement) || '-' : 'Borrower/witness signature, stamp and notary required',
-      nextAction: loanAgreement?.stampStatus === 'complete' ? 'Mark notarised' : 'Upload signed',
+      nextAction: compactStatus(loanAgreement) === 'verified' ? 'View' : 'Upload signed copy',
       prerequisitesComplete: compactStatus(loanAgreement) === 'verified' && loanAgreement?.stampStatus === 'complete' && loanAgreement?.notarisationStatus === 'complete',
     },
     {
@@ -267,9 +273,9 @@ const DocumentChecklist: React.FC<DocumentChecklistProps> = ({
       stampStatus: signatureMismatch ? 'pending' : 'not_required',
       notaryStatus: 'not_required',
       verificationStatus: signatureMismatch ? compactStatus(bankVerification) : 'not_required',
-      evidence: signatureMismatch ? `Mismatch: cheque vs PAN / acct ${mask('1234', sensitiveVisible)}` : '-',
+      evidence: signatureMismatch ? `Mismatch: cheque vs PAN / acct ${mask('99991234', 'acct', sensitiveVisible)}` : '-',
       deficiency: signatureMismatch && compactStatus(bankVerification) !== 'verified' ? 'Resolution document pending' : verifiedTrail(bankVerification) || '-',
-      nextAction: signatureMismatch ? 'Upload resolution' : 'None',
+      nextAction: signatureMismatch ? (compactStatus(bankVerification) === 'verified' ? 'View' : 'Upload') : 'View only',
       prerequisitesComplete: !signatureMismatch || compactStatus(bankVerification) === 'verified',
     },
     {
@@ -284,7 +290,7 @@ const DocumentChecklist: React.FC<DocumentChecklistProps> = ({
       verificationStatus: finalSignoffsComplete ? 'verified' : 'pending',
       evidence: `${finalSignoffProgress}/4 sign-offs`,
       deficiency: finalSignoffsComplete ? '-' : 'Final sign-offs incomplete',
-      nextAction: finalSignoffProgress === 0 ? 'Submit to CS' : 'Submit next',
+      nextAction: finalSignoffsComplete ? 'View' : 'Submit to CS',
       prerequisitesComplete: finalSignoffsComplete,
     },
   ];
@@ -300,7 +306,7 @@ const DocumentChecklist: React.FC<DocumentChecklistProps> = ({
         <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
           <AlertTriangle size={16} className="text-red-600 flex-shrink-0" />
           <p className="text-sm text-red-800 font-medium">
-            Disbursement blocked: {blockingRows[0].name} pending{blockingRows.length > 1 ? ` +${blockingRows.length - 1}` : ''}.
+            Disbursement blocked: {blockingRows.length} documentation items pending. Primary blocker: {blockingRows[0].name.includes('verification') ? blockingRows[0].name : `${blockingRows[0].name} verification`}.
           </p>
         </div>
       )}
@@ -313,19 +319,37 @@ const DocumentChecklist: React.FC<DocumentChecklistProps> = ({
               <th className="table-header text-left w-[17%]">Requirement</th>
               <th className="table-header text-left w-[19%]">Readiness</th>
               <th className="table-header text-left w-[28%]">Evidence / Deficiency</th>
-              <th className="table-header text-left w-[12%]">Next</th>
+              <th className="table-header text-left w-[12%]">
+                <span title="Immediate allowed action. Later steps stay locked until prerequisites pass." className="border-b border-dotted border-slate-400 cursor-help">
+                  Next step
+                </span>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {rows.map(row => {
-              const details = executionSummary(row);
-              const canMarkVerified = !markVerifiedDisabled(row);
+            {[
+              { name: 'Identity & KYC', rowIds: ['borrower-kyc', 'nominee-kyc', 'witness-kyc'] },
+              { name: 'Bank & Custody', rowIds: ['cancelled-cheque', 'blank-cheque', 'bank-verification'] },
+              { name: 'Legal Documents', rowIds: ['poa', 'tri-party', 'term-sheet', 'loan-agreement'] },
+              { name: 'Security Documents', rowIds: ['sh4', 'cdsl'] },
+              { name: 'Final Sign-off', rowIds: ['final-signatures'] }
+            ].map(group => (
+              <React.Fragment key={group.name}>
+                <tr className="bg-slate-100/50">
+                  <td colSpan={5} className="px-4 py-2 text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                    {group.name}
+                  </td>
+                </tr>
+                {group.rowIds.map(rowId => {
+                  const row = rows.find(r => r.id === rowId)!;
+                  const details = executionSummary(row);
+                  const canMarkVerified = !markVerifiedDisabled(row);
 
-              return (
-                <tr key={row.id} className="hover:bg-slate-50 align-top">
-                  <td className="table-cell">
+                  return (
+                    <tr key={row.id} className="hover:bg-slate-50 align-top">
+                      <td className="table-cell">
                     <div className="font-medium text-slate-900">{row.name}</div>
-                    {row.prerequisitesComplete && (
+                    {row.prerequisitesComplete && row.status !== 'verified' && row.status !== 'signed' && (
                       <div className="text-xs text-green-700 mt-1">Ready for gate</div>
                     )}
                   </td>
@@ -349,16 +373,16 @@ const DocumentChecklist: React.FC<DocumentChecklistProps> = ({
                   </td>
                   <td className="table-cell">
                     <div className="flex flex-col items-start gap-1">
-                      {row.nextAction !== 'None' && (
+                      {row.nextAction !== 'None' && row.status !== 'not_required' && (
                         <button
                           className="text-xs px-2 py-1 border border-slate-200 rounded text-slate-600 hover:bg-slate-50 disabled:opacity-50"
                           disabled={readOnly}
                           title={readOnly ? 'Read-only role' : row.nextAction}
                         >
-                          {row.nextAction === 'View' ? <span className="inline-flex items-center gap-1"><Eye size={12} /> View</span> : row.nextAction.includes('Upload') ? <span className="inline-flex items-center gap-1"><Upload size={12} /> Upload</span> : row.nextAction}
+                          {row.nextAction === 'View' || row.nextAction === 'View only' ? <span className="inline-flex items-center gap-1"><Eye size={12} /> View</span> : row.nextAction.includes('Upload') ? <span className="inline-flex items-center gap-1"><Upload size={12} /> Upload</span> : row.nextAction}
                         </button>
                       )}
-                      {canMarkVerified && (
+                      {canMarkVerified && row.required !== 'not_required' && row.nextAction === 'Verify' && (
                         <button
                           className="text-xs px-2 py-1 bg-blue-50 border border-blue-200 rounded text-blue-700 hover:bg-blue-100"
                           title="Mark verified"
@@ -371,7 +395,9 @@ const DocumentChecklist: React.FC<DocumentChecklistProps> = ({
                 </tr>
               );
             })}
-          </tbody>
+          </React.Fragment>
+        ))}
+      </tbody>
         </table>
       </div>
     </div>

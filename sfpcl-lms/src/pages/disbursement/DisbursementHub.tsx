@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Banknote, ChevronRight, Check, AlertTriangle, Building2, ShieldCheck, Download, FileText, Upload } from 'lucide-react';
+import { Banknote, ChevronRight, Check, AlertTriangle, Building2, ShieldCheck, Download, FileText, Upload, Lock } from 'lucide-react';
 import StatusBadge from '../../components/ui/StatusBadge';
 import AlertBanner from '../../components/ui/AlertBanner';
 import { loanApplications } from '../../data/mockData';
@@ -35,7 +35,7 @@ const DisbursementHub: React.FC<DisbursementHubProps> = ({ onOpenApplication, in
   const [sapCode, setSapCode] = useState('');
   const [bankAccount, setBankAccount] = useState('');
   const [bankIfsc, setBankIfsc] = useState('');
-  const [stage, setStage] = useState<DisbStage>('sap_pending');
+  const [stage, setStage] = useState<DisbStage>(initialApp?.sapCustomerCode ? 'bank_verify' : 'sap_pending');
   const [confirmed, setConfirmed] = useState(false);
   const [bankVerified, setBankVerified] = useState(false);
   const [bankReference, setBankReference] = useState('');
@@ -85,13 +85,13 @@ const DisbursementHub: React.FC<DisbursementHubProps> = ({ onOpenApplication, in
           {/* Queue */}
           <div className="card p-0 overflow-hidden lg:col-span-1">
             <div className="p-4 bg-slate-50 border-b border-slate-200">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Ready to Disburse ({disbQueue.length})</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Disbursement Queue ({disbQueue.length})</p>
             </div>
             <div className="divide-y divide-slate-100">
               {disbQueue.map(a => (
                 <button
                   key={a.id}
-                  onClick={() => { setSelected(a.id); setStage('sap_pending'); setConfirmed(false); }}
+                  onClick={() => { setSelected(a.id); setStage(a.sapCustomerCode ? 'bank_verify' : 'sap_pending'); setConfirmed(false); setBankVerified(false); }}
                   className={`w-full flex items-center gap-3 p-4 hover:bg-slate-50 transition-colors text-left ${selected === a.id ? 'bg-green-50 border-l-4 border-l-green-500' : ''}`}
                 >
                   <Banknote size={16} className="text-green-600 flex-shrink-0" />
@@ -114,7 +114,7 @@ const DisbursementHub: React.FC<DisbursementHubProps> = ({ onOpenApplication, in
                   <div>
                     <div className="flex items-center gap-2">
                       <h2 className="text-lg font-bold text-slate-900 num">{app.applicationNumber}</h2>
-                      <StatusBadge label={app.disbursementStatus} size="sm" />
+                      <StatusBadge label={app.disbursementStatus === 'pending_disbursement' ? 'bank_verification_pending' : app.disbursementStatus} size="sm" />
                     </div>
                     <p className="text-sm text-slate-500">{app.memberName} · {fmt(app.requestedAmount)}</p>
                   </div>
@@ -215,22 +215,32 @@ const DisbursementHub: React.FC<DisbursementHubProps> = ({ onOpenApplication, in
                   {stage !== 'ready' ? (
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-amber-50 border border-amber-200 rounded-lg p-4">
                       <div className="text-sm text-amber-800">
-                        <p className="font-semibold">Bank verification required before payment initiation</p>
+                        <p className="font-semibold">Bank verification required before payment initiation.</p>
                         <p className="text-xs mt-0.5">Confirm account name, account number, IFSC, and signature mismatch clearance.</p>
                       </div>
-                      {can('initiate_disbursement') ? (
-                        <button
-                          className="btn-primary text-sm flex-shrink-0"
-                          disabled={!(app.sapCustomerCode || sapCode)}
-                          onClick={() => { setBankVerified(true); setStage('ready'); }}
-                        >
-                          <ShieldCheck size={16} className="mr-2" /> Mark Ready for Payment
-                        </button>
-                      ) : (
-                        <button className="btn-primary text-sm opacity-50 cursor-not-allowed flex-shrink-0" disabled>
-                          <ShieldCheck size={16} className="mr-2" /> Mark Ready for Payment
-                        </button>
-                      )}
+                      <div className="flex items-center gap-3">
+                        {!bankVerified && (
+                          <button className="btn-secondary text-sm flex-shrink-0" onClick={() => setBankVerified(true)}>
+                            Verify Bank Account
+                          </button>
+                        )}
+                        {!bankVerified ? (
+                          <div className="bg-slate-50 border border-slate-200 text-slate-500 text-sm px-4 py-2.5 rounded-lg flex items-center gap-2">
+                            <Lock size={14} /> Locked — complete bank verification
+                          </div>
+                        ) : can('initiate_disbursement') ? (
+                          <button
+                            className="btn-primary text-sm flex-shrink-0"
+                            onClick={() => setStage('ready')}
+                          >
+                            <ShieldCheck size={16} className="mr-2" /> Mark Ready for Payment
+                          </button>
+                        ) : (
+                          <div className="bg-slate-50 border border-slate-200 text-slate-700 text-sm px-4 py-2.5 rounded-lg flex items-center gap-2">
+                            <Lock size={14} /> Senior Manager Finance action required
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 text-green-700 bg-green-50 rounded-lg p-3">

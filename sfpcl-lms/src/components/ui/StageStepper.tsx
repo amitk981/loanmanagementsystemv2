@@ -11,6 +11,7 @@ export interface Step {
 interface StageStepperProps {
   steps: Step[];
   compact?: boolean;
+  onStepClick?: (id: string) => void;
 }
 
 const stateStyles = {
@@ -29,16 +30,22 @@ const stateIcons: Record<string, React.ReactNode> = {
   exception: <AlertOctagon size={14} />,
 };
 
-const StageStepper: React.FC<StageStepperProps> = ({ steps, compact = false }) => {
+const StageStepper: React.FC<StageStepperProps> = ({ steps, compact = false, onStepClick }) => {
   return (
     <div className={`flex items-start ${compact ? 'gap-0' : 'gap-0'} overflow-x-auto pb-1`}>
       {steps.map((step, idx) => {
         const styles = stateStyles[step.state];
         const isLast = idx === steps.length - 1;
+        const isClickable = !!onStepClick;
 
         return (
           <div key={step.id} className="flex items-start flex-1 min-w-0">
-            <div className="flex flex-col items-center flex-shrink-0">
+            <button 
+              type="button"
+              disabled={!isClickable || step.state === 'blocked'}
+              onClick={() => onStepClick?.(step.id)}
+              className={`flex flex-col items-center flex-shrink-0 ${isClickable && step.state !== 'blocked' ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
+            >
               <div className={`flex items-center justify-center w-7 h-7 rounded-full border-2 ${styles.circle} transition-all`}>
                 {stateIcons[step.state] || <Circle size={10} />}
               </div>
@@ -48,7 +55,7 @@ const StageStepper: React.FC<StageStepperProps> = ({ steps, compact = false }) =
                   {step.sublabel && <div className="text-xs text-slate-400 mt-0.5 leading-tight">{step.sublabel}</div>}
                 </div>
               )}
-            </div>
+            </button>
             {!isLast && (
               <div className={`flex-1 h-0.5 mt-3.5 mx-1 ${styles.connector} min-w-[16px]`} />
             )}

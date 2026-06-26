@@ -83,7 +83,7 @@ export const formatStatusLabel = (status: string): string => {
     reference_generated: 'Reference Issued', appraisal_pending: 'Appraisal Pending',
     credit_review: 'Credit Review', pending_sanction: 'Pending Sanction',
     sanctioned: 'Sanctioned', rejected_credit: 'Rejected (Credit)', rejected_sanction: 'Rejected (Sanction)',
-    not_started: 'Not Started', in_progress: 'In Progress', pending_signature: 'Pending Signature',
+    not_started: 'Not Started', in_progress: 'In Progress', pending_signature: 'Signature pending',
     pending_stamp: 'Pending Stamp', pending_notarisation: 'Pending Notarisation',
     pending_cs_review: 'Pending CS Review', pending_credit_review: 'Pending Credit Review',
     pending_final_approval: 'Pending Final Approval', complete: 'Complete', blocked: 'Blocked',

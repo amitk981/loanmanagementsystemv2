@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import StatusBadge from '../../components/ui/StatusBadge';
 import AlertBanner from '../../components/ui/AlertBanner';
+import StageStepper from '../../components/ui/StageStepper';
 import LoanLimitCalculator from '../../components/loan/LoanLimitCalculator';
 import EligibilityChecklist from '../../components/loan/EligibilityChecklist';
 import { loanApplications, members } from '../../data/mockData';
@@ -62,18 +63,19 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
   const isDMFinance = currentUser.role === 'deputy_manager_finance';
   const isCreditManager = currentUser.role === 'credit_manager';
 
-  const canProceedToAppraisal = activeMemberVerified && kycVerified;
+  const canProceedToAppraisal = currentUser.role === 'admin' || (activeMemberVerified && kycVerified && can('do_appraisal'));
   const recommendedAmountNumber = Number(recommendedAmount || 0);
   const recommendedWithinLimit = app ? recommendedAmountNumber > 0 && recommendedAmountNumber <= app.eligibleAmount : false;
   const requiresException = app?.isException || recommendation === 'exception' || (recommendedAmountNumber > 0 && app ? recommendedAmountNumber > app.eligibleAmount : false);
-  const canForwardToSanction =
+  const canForwardToSanction = currentUser.role === 'admin' || (
     noteText.trim().length > 10 &&
     riskRating &&
     riskRationale.trim().length > 5 &&
     bankObservation.trim().length > 5 &&
     securityProposed.trim().length > 5 &&
     recommendedAmountNumber > 0 &&
-    (recommendedWithinLimit || requiresException);
+    (recommendedWithinLimit || requiresException)
+  );
 
   const workflowSteps = [
     {
@@ -91,7 +93,7 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
       title: 'Appraise',
       owner: 'DM Finance',
       description: canForwardToSanction ? 'Appraisal note is ready to forward' : 'Enter recommendation, risk, security and conditions',
-      state: appraisalStep === 'submitted' || canForwardToSanction ? 'complete' : appraisalStep === 'appraisal' ? 'active' : canProceedToAppraisal ? 'available' : 'locked',
+      state: appraisalStep === 'submitted' || canForwardToSanction ? 'complete' : appraisalStep === 'appraisal' ? 'active' : (activeMemberVerified && kycVerified) ? 'available' : 'locked',
       count: canForwardToSanction ? 'Ready' : `${[
         noteText.trim().length > 10,
         riskRationale.trim().length > 5,
@@ -124,49 +126,30 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
       </div>
 
       <div className="card">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {workflowSteps.map((item, i) => {
-            const isLocked = item.state === 'locked';
-            const isActive = item.state === 'active';
-            const isComplete = item.state === 'complete';
-            return (
-              <button
-                key={item.step}
-                type="button"
-                disabled={isLocked}
-                onClick={() => !isLocked && setAppraisalStep(item.step)}
-                className={`text-left rounded-lg border p-4 transition-colors ${
-                  isActive ? 'border-green-500 bg-green-50 shadow-sm' :
-                  isComplete ? 'border-green-200 bg-white' :
-                  isLocked ? 'border-slate-200 bg-slate-50 opacity-70 cursor-not-allowed' :
-                  'border-slate-200 bg-white hover:border-green-200 hover:bg-green-50'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className={`text-xs font-semibold ${isLocked ? 'text-slate-400' : 'text-green-700'}`}>
-                      {item.label}
-                    </div>
-                    <div className={`mt-1 font-bold ${isLocked ? 'text-slate-500' : 'text-slate-900'}`}>
-                      {item.title}
-                    </div>
-                  </div>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    isComplete ? 'bg-green-600 text-white' :
-                    isActive ? 'bg-green-100 text-green-700' :
-                    isLocked ? 'bg-slate-100 text-slate-400' : 'bg-amber-50 text-amber-600'
-                  }`}>
-                    {isComplete ? <CheckCircle2 size={16} /> : isLocked ? <Lock size={15} /> : i === 1 ? <FileText size={15} /> : i === 2 ? <Send size={15} /> : <BadgeCheck size={15} />}
-                  </div>
-                </div>
-                <div className="mt-3 text-sm text-slate-600">{item.description}</div>
-                <div className="mt-3 flex items-center justify-between gap-3 text-xs">
-                  <span className="text-slate-500">Owner: {item.owner}</span>
-                  <span className={`font-semibold ${isComplete ? 'text-green-700' : isLocked ? 'text-slate-400' : 'text-amber-700'}`}>{item.count}</span>
-                </div>
-              </button>
-            );
-          })}
+        <div className="p-4 border-b border-slate-100">
+          <StageStepper 
+            steps={[
+              {
+                id: 'verification',
+                label: 'Step 1: Verify',
+                sublabel: 'DM Finance',
+                state: (activeMemberVerified && kycVerified) ? 'completed' : appraisalStep === 'verification' ? 'in_progress' : 'not_started'
+              },
+              {
+                id: 'appraisal',
+                label: 'Step 2: Appraise',
+                sublabel: 'DM Finance',
+                state: appraisalStep === 'submitted' || canForwardToSanction ? 'completed' : appraisalStep === 'appraisal' ? 'in_progress' : (activeMemberVerified && kycVerified) ? 'not_started' : 'blocked'
+              },
+              {
+                id: 'forward',
+                label: 'Step 3: Forward',
+                sublabel: 'Credit Manager',
+                state: appraisalStep === 'submitted' ? 'completed' : canForwardToSanction ? 'not_started' : 'blocked'
+              }
+            ]}
+            onStepClick={(id) => setAppraisalStep(id as any)}
+          />
         </div>
       </div>
 
@@ -198,7 +181,15 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
                     <div className="text-xs text-slate-400 num">{fmt(a.requestedAmount)}</div>
                   </div>
                   <div className="flex flex-col items-end gap-1">
-                    <StatusBadge label={a.status} size="sm" />
+                    <StatusBadge 
+                      label={
+                        a.status === 'reference_generated' ? 'verification_pending' : 
+                        a.status === 'appraisal_pending' ? 'appraisal_draft_pending' : 
+                        a.status === 'credit_review' ? 'credit_review_pending' : 
+                        a.status
+                      } 
+                      size="sm" 
+                    />
                     {a.isException && (
                       <span className="text-xs bg-violet-100 text-violet-700 px-1 py-0.5 rounded font-medium">EX</span>
                     )}
@@ -276,15 +267,40 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
 
                     <textarea
                       rows={2}
-                      placeholder="Verification note — confirm supply records, relaxation applied (if any), subsidiary linkage…"
+                      placeholder={member?.supplyYears !== undefined && member.supplyYears < 4 ? "Enter relaxation reason/evidence (required for 4-year rule failure)..." : "Verification note — confirm supply records, relaxation applied (if any), subsidiary linkage…"}
                       value={activeMemberNote}
                       onChange={e => setActiveMemberNote(e.target.value)}
                       className="field-input text-sm resize-none mb-3"
+                      disabled={isCreditManager || activeMemberVerified}
                     />
 
-                    {member?.activeStatus !== 'active' ? (
+                    {isCreditManager && !activeMemberVerified ? (
+                      <div className="bg-slate-50 border border-slate-200 text-slate-700 text-sm px-4 py-3 rounded-lg flex items-center gap-2 mt-2">
+                        <Lock size={16} className="text-slate-500" />
+                        <span className="font-semibold text-slate-900">Locked — Deputy Manager – Finance action required</span>
+                      </div>
+                    ) : member?.activeStatus !== 'active' ? (
                       <AlertBanner type="error" title="Member is NOT Active — Loan is Blocked"
                         message="Member does not meet the active member criteria. Cannot proceed with appraisal." />
+                    ) : (member?.supplyYears !== undefined && member.supplyYears < 4) ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                          <AlertTriangle size={16} className="text-amber-600 flex-shrink-0" />
+                          <span>4-year supply rule not met. Record approved relaxation before appraisal.</span>
+                        </div>
+                        <button
+                          onClick={() => setActiveMemberVerified(true)}
+                          disabled={activeMemberVerified || !activeMemberNote.trim()}
+                          className={`flex items-center gap-2 text-sm px-4 py-2 rounded-lg font-medium transition-colors ${
+                            activeMemberVerified
+                              ? 'bg-green-50 text-green-700 border border-green-200'
+                              : 'bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed'
+                          }`}
+                        >
+                          <CheckCircle2 size={14} />
+                          {activeMemberVerified ? 'Active Status Verified ✓' : 'Verify with relaxation'}
+                        </button>
+                      </div>
                     ) : (
                       <div className="flex gap-3">
                         <button
@@ -357,29 +373,49 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
                       value={kycNote}
                       onChange={e => setKycNote(e.target.value)}
                       className="field-input text-sm resize-none mb-3"
+                      disabled={isCreditManager || kycVerified}
                     />
 
-                    {member?.kycStatus !== 'verified' ? (
+                    {isCreditManager && !kycVerified ? (
+                      <div className="bg-slate-50 border border-slate-200 text-slate-700 text-sm px-4 py-3 rounded-lg flex items-center gap-2 mt-2">
+                        <Lock size={16} className="text-slate-500" />
+                        <span className="font-semibold text-slate-900">Locked — Deputy Manager – Finance action required</span>
+                      </div>
+                    ) : member?.kycStatus !== 'verified' ? (
                       <AlertBanner type="warning" title="KYC Not Verified"
                         message="Member KYC must be verified before appraisal can proceed. Initiate re-KYC if needed." />
+                    ) : kycVerified ? (
+                      <div className="flex gap-3">
+                        <button
+                          disabled
+                          className="flex items-center gap-2 text-sm px-4 py-2 rounded-lg font-medium bg-green-50 text-green-700 border border-green-200"
+                        >
+                          <CheckCircle2 size={14} />
+                          KYC Verified ✓
+                        </button>
+                        <button className="flex items-center gap-2 text-sm px-4 py-2 rounded-lg font-medium bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-700 transition-colors">
+                          View KYC evidence
+                        </button>
+                      </div>
                     ) : (
                       <button
                         onClick={() => setKycVerified(true)}
                         disabled={kycVerified}
-                        className={`flex items-center gap-2 text-sm px-4 py-2 rounded-lg font-medium transition-colors ${
-                          kycVerified
-                            ? 'bg-green-50 text-green-700 border border-green-200'
-                            : 'bg-green-600 hover:bg-green-700 text-white'
-                        }`}
+                        className="flex items-center gap-2 text-sm px-4 py-2 rounded-lg font-medium transition-colors bg-green-600 hover:bg-green-700 text-white"
                       >
                         <CheckCircle2 size={14} />
-                        {kycVerified ? 'KYC Verified ✓' : 'Confirm KYC Verification'}
+                        Confirm KYC Verification
                       </button>
                     )}
                   </div>
 
                   {/* Proceed button */}
-                  <div className="flex justify-end">
+                  <div className="flex items-center justify-end gap-3 mt-4">
+                    {!canProceedToAppraisal && (
+                      <span className="text-sm font-semibold text-slate-500 flex items-center gap-1.5">
+                        <Lock size={14} /> Locked — complete Step 1 checks first
+                      </span>
+                    )}
                     <button
                       disabled={!canProceedToAppraisal}
                       onClick={() => setAppraisalStep('appraisal')}

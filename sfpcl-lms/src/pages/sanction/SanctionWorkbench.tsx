@@ -34,7 +34,7 @@ interface SanctionWorkbenchProps {
 const SanctionWorkbench: React.FC<SanctionWorkbenchProps> = ({ onOpenApplication, initialSelectedId }) => {
   const { can } = useRole();
   const sanctionQueue = loanApplications.filter(a =>
-    a.status === 'pending_sanction' || a.status === 'credit_review'
+    a.status === 'pending_sanction'
   );
   const exceptions = loanApplications.filter(a => a.isException);
   const specialCases = loanApplications.filter(a => a.specialCase);
@@ -43,7 +43,7 @@ const SanctionWorkbench: React.FC<SanctionWorkbenchProps> = ({ onOpenApplication
   const [selected, setSelected] = useState<string | null>(
     initialApp?.id || sanctionQueue[0]?.id || null
   );
-  const [sanctionDecision, setSanctionDecision] = useState<Record<string, 'approved' | 'rejected' | 'abstained' | null>>({});
+  const [slotDecisions, setSlotDecisions] = useState<Record<string, Record<string, { decision: string, reason: string, timestamp: string }>>>({});
   const [abstainReason, setAbstainReason] = useState<Record<string, string>>({});
   const [rejectionCategory, setRejectionCategory] = useState<Record<string, string>>({});
   const [rejectionNote, setRejectionNote] = useState<Record<string, string>>({});
@@ -56,9 +56,25 @@ const SanctionWorkbench: React.FC<SanctionWorkbenchProps> = ({ onOpenApplication
   const { currentUser } = useRole();
   const app = sanctionQueue.find(a => a.id === selected);
 
-  const isDirectorRole = currentUser.role === 'director';
-  const isCFO = currentUser.role === 'cfo';
-  const decision = selected ? sanctionDecision[selected] : null;
+  const isDirectorRole = currentUser.role === 'director' || currentUser.role === 'admin';
+  const isCFO = currentUser.role === 'cfo' || currentUser.role === 'admin';
+
+  const getDisplayStatus = (a: any) => {
+    const decs = slotDecisions[a.id] || {};
+    const cfoDecision = decs['CFO']?.decision;
+    const reqDirs = a.requestedAmount > 500000 ? 2 : 1;
+    const dirDecisions = reqDirs === 2 
+      ? [decs['Director 1']?.decision, decs['Director 2']?.decision] 
+      : [decs['Director 1']?.decision];
+
+    const cfoApproved = cfoDecision === 'approved';
+    const dirsApproved = dirDecisions.every(d => d === 'approved');
+
+    if (cfoApproved && dirsApproved) return 'sanctioned';
+    if (cfoApproved) return 'cfo_approved';
+    
+    return a.status;
+  };
   const quorumRequired = app && app.requestedAmount > 500000 ? 3 : 2;
 
   return (
@@ -87,8 +103,16 @@ const SanctionWorkbench: React.FC<SanctionWorkbenchProps> = ({ onOpenApplication
       {exceptions.length > 0 && (
         <AlertBanner
           type="exception"
-          title={`${exceptions.length} exception case${exceptions.length > 1 ? 's' : ''} require CFO + Director approval`}
-          message={exceptions.map(e => `${e.applicationNumber}: ${e.exceptionReason}`).join(' | ')}
+          title={`${exceptions.length} exception case${exceptions.length > 1 ? 's' : ''} require escalated approval.`}
+          message={
+            <div className="flex flex-col gap-1 mt-1">
+              {exceptions.map(e => (
+                <div key={e.id}>
+                  • {e.applicationNumber}: {e.requestedAmount > e.eligibleAmount ? 'Exceeds eligible limit — CFO + 2 Directors + Exception Register.' : 'Above ₹5,00,000 — CFO + 2 Directors.'}
+                </div>
+              ))}
+            </div>
+          }
         />
       )}
       {specialCases.length > 0 && (
@@ -135,7 +159,13 @@ const SanctionWorkbench: React.FC<SanctionWorkbenchProps> = ({ onOpenApplication
                     <div className="text-xs text-slate-500 truncate">{a.memberName}</div>
                     <div className="text-xs text-slate-400 num">{fmt(a.requestedAmount)} · {a.requestedAmount <= 500000 ? 'CFO+1Dir' : 'CFO+2Dir'}</div>
                   </div>
-                  <StatusBadge label={a.status} size="sm" />
+                  {getDisplayStatus(a) === 'cfo_approved' ? (
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 whitespace-nowrap">
+                      CFO approved · Director pending
+                    </span>
+                  ) : (
+                    <StatusBadge label={getDisplayStatus(a)} size="sm" />
+                  )}
                 </button>
               ))}
             </div>
@@ -150,7 +180,13 @@ const SanctionWorkbench: React.FC<SanctionWorkbenchProps> = ({ onOpenApplication
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <h2 className="text-lg font-bold text-slate-900 num">{app.applicationNumber}</h2>
-                      <StatusBadge label={app.status} />
+                      {getDisplayStatus(app) === 'cfo_approved' ? (
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 whitespace-nowrap">
+                          CFO approved · Director approval pending
+                        </span>
+                      ) : (
+                        <StatusBadge label={getDisplayStatus(app)} />
+                      )}
                       {app.isException && <span className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded font-semibold">Exception</span>}
                       {app.specialCase && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-semibold">Special Case</span>}
                     </div>
@@ -244,184 +280,58 @@ const SanctionWorkbench: React.FC<SanctionWorkbenchProps> = ({ onOpenApplication
                   Quorum: {quorumRequired === 3 ? 'CFO + 2 Directors (amount > ₹5 lakh)' : 'CFO + 1 Director (amount ≤ ₹5 lakh)'}
                 </p>
 
+                {/* Compact Pre-checks */}
+                <div className="border-t border-slate-100 pt-4 mt-4 mb-4">
+                  <p className="text-xs text-slate-500 mb-2 font-medium uppercase tracking-wide">Pre-Sanction Checks</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+                    {[
+                      'Eligibility verified',
+                      'Requested amount within eligible limit',
+                      'Loan purpose: agriculture / crop production',
+                      'Risk assessment reviewed',
+                      'Past borrowing/default reviewed',
+                      'Compliance checks reviewed',
+                      'Documentation readiness reviewed',
+                      'Approval authority confirmed',
+                      'Exception flag reviewed',
+                      'Conflict / related-party flag reviewed',
+                    ].map(check => (
+                      <div key={check} className="flex items-center gap-2 text-sm text-slate-700">
+                        <CheckCircle2 size={14} className="text-green-500 flex-shrink-0" />
+                        <span className="truncate" title={check}>{check}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 <ApprovalPanel
                   applicationNumber={app.applicationNumber}
                   requestedAmount={app.requestedAmount}
+                  eligibleAmount={app.eligibleAmount}
                   isException={app.isException}
                   isSpecialCase={app.specialCase}
                   approvers={[
-                    { role: 'CFO', name: 'Suresh Nair', decision: 'pending' },
-                    { role: 'Director 1', name: 'Anita Desai', decision: 'pending' },
-                    ...(app.requestedAmount > 500000 ? [{ role: 'Director 2', name: 'Prakash Joshi', decision: 'pending' as const }] : []),
-                  ]}
-                  onDecision={(d, reason) => {
-                    setSanctionDecision(p => ({ ...p, [app.id]: d as any }));
+                    { role: 'CFO', name: 'Suresh Nair' },
+                    { role: 'Director 1', name: 'Anita Desai' },
+                    ...(app.requestedAmount > 500000 ? [{ role: 'Director 2', name: 'Prakash Joshi' }] : []),
+                  ].map(a => ({
+                    ...a,
+                    decision: slotDecisions[app.id]?.[a.role]?.decision as any || 'pending',
+                    reason: slotDecisions[app.id]?.[a.role]?.reason || '',
+                    timestamp: slotDecisions[app.id]?.[a.role]?.timestamp || '',
+                    evidence: slotDecisions[app.id]?.[a.role]?.decision ? true : false,
+                  }))}
+                  onDecision={(d, reason, slotRole) => {
+                    if (!slotRole) return;
+                    setSlotDecisions(prev => ({
+                      ...prev,
+                      [app.id]: {
+                        ...(prev[app.id] || {}),
+                        [slotRole]: { decision: d, reason, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }
+                      }
+                    }));
                   }}
                 />
-
-                {/* Decision action buttons */}
-                {!decision && (
-                  <div className="border-t border-slate-100 pt-4 mt-4">
-                    <p className="text-xs text-slate-500 mb-3 font-medium uppercase tracking-wide">Your Decision</p>
-
-                    {/* Reduced amount option */}
-                    <div className="mb-4 space-y-2">
-                      <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
-                        <input type="checkbox"
-                          checked={!!reducedAmount[app.id]}
-                          onChange={e => {
-                            if (!e.target.checked) setReducedAmount(p => ({ ...p, [app.id]: '' }));
-                            else setReducedAmount(p => ({ ...p, [app.id]: String(app.eligibleAmount) }));
-                          }}
-                          className="w-4 h-4 accent-green-600"
-                        />
-                        Approve at reduced amount (partial sanction)
-                      </label>
-                      {reducedAmount[app.id] !== undefined && reducedAmount[app.id] !== '' && (
-                        <div className="ml-6 flex items-center gap-2">
-                          <span className="text-sm text-slate-600">Sanction amount:</span>
-                          <input
-                            type="number"
-                            value={sanctionedAmount[app.id] || ''}
-                            onChange={e => setSanctionedAmount(p => ({ ...p, [app.id]: e.target.value }))}
-                            placeholder={String(app.eligibleAmount)}
-                            className="field-input text-sm w-36 py-1"
-                          />
-                        </div>
-                      )}
-                      <div>
-                        <label className="block text-xs text-slate-500 mb-1">Conditions (if any)</label>
-                        <input
-                          type="text"
-                          value={conditionsApplied[app.id] || ''}
-                          onChange={e => setConditionsApplied(p => ({ ...p, [app.id]: e.target.value }))}
-                          placeholder="e.g. Subject to CDSL pledge completion within 7 days…"
-                          className="field-input text-sm py-1.5 w-full"
-                        />
-                      </div>
-                    </div>
-                    {can('approve_sanction') ? (
-                      <div className="flex gap-3 flex-wrap">
-                        {/* Approve */}
-                        <button
-                          onClick={() => setSanctionDecision(p => ({ ...p, [app.id]: 'approved' }))}
-                          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm px-4 py-2.5 rounded-xl font-semibold transition-colors"
-                        >
-                          <CheckCircle2 size={16} /> Approve
-                        </button>
-
-                        {/* Reject — requires reason */}
-                        <button
-                          onClick={() => setSanctionDecision(p => ({ ...p, [app.id]: 'rejected' }))}
-                          className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2.5 rounded-xl font-semibold transition-colors"
-                        >
-                          <XCircle size={16} /> Reject
-                        </button>
-
-                        {/* Abstain — Director only, conflict of interest */}
-                        <button
-                          onClick={() => setSanctionDecision(p => ({ ...p, [app.id]: 'abstained' }))}
-                          className="flex items-center gap-2 bg-slate-400 hover:bg-slate-500 text-white text-sm px-4 py-2.5 rounded-xl font-semibold transition-colors"
-                          title="For Directors with conflict of interest"
-                        >
-                          <Scale size={16} /> Abstain (Conflict of Interest)
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm px-4 py-3 rounded-lg flex items-center gap-2">
-                        <AlertCircle size={16} />
-                        You do not have permission to approve or reject this sanction. The Sanction Committee must take action.
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Rejection reason form */}
-                {decision === 'rejected' && (
-                  <div className="border-t border-slate-100 pt-4 mt-4 space-y-3">
-                    <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl p-3">
-                      <XCircle size={16} className="text-red-600 flex-shrink-0" />
-                      <p className="text-sm font-semibold text-red-800">Rejection Reason — Required</p>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Reason Category</label>
-                      <select
-                        value={rejectionCategory[app.id] || ''}
-                        onChange={e => setRejectionCategory(p => ({ ...p, [app.id]: e.target.value }))}
-                        className="field-select text-sm py-2 w-full"
-                      >
-                        <option value="">Select a reason…</option>
-                        {REJECTION_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Detailed Note (required)</label>
-                      <textarea
-                        rows={3}
-                        value={rejectionNote[app.id] || ''}
-                        onChange={e => setRejectionNote(p => ({ ...p, [app.id]: e.target.value }))}
-                        placeholder="Provide detailed reason for rejection. This will be included in the rejection letter to the borrower."
-                        className="field-input text-sm resize-none w-full"
-                      />
-                    </div>
-                    <div className="flex gap-3">
-                      <button
-                        disabled={!rejectionCategory[app.id] || !rejectionNote[app.id]?.trim()}
-                        className="btn-danger text-sm px-4 py-2 disabled:opacity-50"
-                      >
-                        Confirm Rejection & Generate Rejection Note
-                      </button>
-                      <button
-                        onClick={() => setSanctionDecision(p => ({ ...p, [app.id]: null }))}
-                        className="btn-secondary text-sm"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Abstain reason */}
-                {decision === 'abstained' && (
-                  <div className="border-t border-slate-100 pt-4 mt-4 space-y-3">
-                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-3">
-                      <Scale size={16} className="text-slate-500 flex-shrink-0" />
-                      <p className="text-sm font-semibold text-slate-700">Abstention Recorded — Conflict of Interest</p>
-                    </div>
-                    <textarea
-                      rows={2}
-                      value={abstainReason[app.id] || ''}
-                      onChange={e => setAbstainReason(p => ({ ...p, [app.id]: e.target.value }))}
-                      placeholder="State the nature of the conflict of interest (e.g., Director is a relative of the borrower)…"
-                      className="field-input text-sm resize-none w-full"
-                    />
-                    <div className="flex gap-3">
-                      <button className="btn-secondary text-sm px-4 py-2">Confirm Abstention</button>
-                      <button onClick={() => setSanctionDecision(p => ({ ...p, [app.id]: null }))} className="btn-secondary text-sm">Cancel</button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Approved confirmation */}
-                {decision === 'approved' && (
-                  <div className="border-t border-slate-100 pt-4 mt-4">
-                    <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl p-4">
-                      <CheckCircle2 size={20} className="text-green-600 flex-shrink-0" />
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-green-800">Application Approved</p>
-                        <p className="text-xs text-green-700 mt-0.5">
-                          Sanctioned amount: {sanctionedAmount[app.id] ? fmt(Number(sanctionedAmount[app.id])) : fmt(app.requestedAmount)}
-                          {conditionsApplied[app.id] && ` · Conditions: ${conditionsApplied[app.id]}`}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <button className="flex items-center gap-1 text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg">
-                          <Download size={12} /> Sanction Letter
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           )}

@@ -653,7 +653,10 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
         {/* ── Tab 7: Documents ── */}
         <div className="card">
           <h3 className="text-sm font-semibold text-slate-700 mb-4">Document Checklist</h3>
-          <DocumentChecklist applicationId={applicationId} />
+          <DocumentChecklist 
+            applicationId={app.id} 
+            shareMode={app.shareMode}
+          />
         </div>
 
         {/* ── Tab 8: Security ── */}

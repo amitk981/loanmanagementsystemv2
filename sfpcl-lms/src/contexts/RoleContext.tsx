@@ -165,7 +165,7 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const setRole = (role: Role) => setCurrentUser(ROLE_USERS[role]);
 
   const can = (permission: Permission): boolean =>
-    ROLE_PERMISSIONS[currentUser.role]?.includes(permission) ?? false;
+    currentUser.role === 'admin' || (ROLE_PERMISSIONS[currentUser.role]?.includes(permission) ?? false);
 
   return (
     <RoleContext.Provider value={{ currentUser, setRole, can }}>
