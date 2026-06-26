@@ -46,6 +46,27 @@ const CreditManagerCards: React.FC<{ onNavigate: (p: Page) => void }> = ({ onNav
   </>
 );
 
+const FieldOfficerCards: React.FC<{ onNavigate: (p: Page) => void }> = ({ onNavigate }) => (
+  <div>
+    <h2 className="section-title mb-3">Field Officer — Assisted Intake</h2>
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <KPICard title="Draft Applications" value="1" subtitle="field-assisted intake" icon={ClipboardList} highlight="warning" onClick={() => onNavigate('applications')} />
+      <KPICard title="Member Verification" value="3" subtitle="folio and KYC checks" icon={UserCheck} onClick={() => onNavigate('members')} />
+      <KPICard title="Documents to Collect" value="4" subtitle="borrower uploads/support" icon={FileCheck} highlight="warning" onClick={() => onNavigate('tasks')} />
+      <KPICard title="Submitted Today" value="0" subtitle="ready for finance review" icon={CheckCircle2} onClick={() => onNavigate('applications')} />
+    </div>
+    <div className="card border-amber-200 bg-amber-50 mt-4">
+      <div className="flex items-center gap-3">
+        <Shield size={18} className="text-amber-600 flex-shrink-0" />
+        <div>
+          <p className="text-sm font-semibold text-amber-900">Intake-only role</p>
+          <p className="text-xs text-amber-700 mt-0.5">Field Officers can assist with drafts and document collection, but cannot approve sanctions, appraisal outcomes, disbursement, recovery or closure.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 const DeputyManagerCards: React.FC<{ onNavigate: (p: Page) => void }> = ({ onNavigate }) => (
   <div>
     <h2 className="section-title mb-3">My Workload — Completeness & Appraisal</h2>
@@ -65,7 +86,7 @@ const ComplianceTeamCards: React.FC<{ onNavigate: (p: Page) => void }> = ({ onNa
       <KPICard title="Docs In Preparation" value={String(dashboardStats.documentationPending)} subtitle="active files" icon={FolderOpen} highlight="warning" onClick={() => onNavigate('documentation')} />
       <KPICard title="KYC Compliance" value={String(dashboardStats.reKycDue)} subtitle="re-KYC overdue" icon={UserCheck} highlight={dashboardStats.reKycDue > 0 ? 'danger' : 'normal'} onClick={() => onNavigate('compliance')} />
       <KPICard title="Open Exceptions" value={String(dashboardStats.openExceptions)} subtitle="requiring attention" icon={ShieldAlert} highlight={dashboardStats.openExceptions > 0 ? 'danger' : 'normal'} onClick={() => onNavigate('compliance')} />
-      <KPICard title="Ready to Disburse" value={String(dashboardStats.readyForDisbursement)} subtitle="docs complete" icon={BadgeCheck} highlight={dashboardStats.readyForDisbursement > 0 ? 'success' : 'normal'} onClick={() => onNavigate('disbursement')} />
+      <KPICard title="Docs Cleared" value={String(dashboardStats.readyForDisbursement)} subtitle="handoff to finance" icon={BadgeCheck} highlight={dashboardStats.readyForDisbursement > 0 ? 'success' : 'normal'} onClick={() => onNavigate('documentation')} />
     </div>
   </div>
 );
@@ -154,6 +175,18 @@ const AccountsCards: React.FC<{ onNavigate: (p: Page) => void }> = ({ onNavigate
   </div>
 );
 
+const SalesTeamCards: React.FC<{ onNavigate: (p: Page) => void }> = ({ onNavigate }) => (
+  <div>
+    <h2 className="section-title mb-3">Sales Team — Interest Invoice Support</h2>
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <KPICard title="Invoices to Prepare" value="18" subtitle="year-end farmer invoices" icon={FileText} highlight="warning" onClick={() => onNavigate('interest')} />
+      <KPICard title="Subsidiary Deduction" value="6" subtitle="repayment linkage checks" icon={Receipt} onClick={() => onNavigate('loan-accounts')} />
+      <KPICard title="Invoice Register" value="Open" subtitle="statutory evidence" icon={Book} onClick={() => onNavigate('registers')} />
+      <KPICard title="MIS Extract" value="Ready" subtitle="accounts coordination" icon={BarChart3} onClick={() => onNavigate('reports')} />
+    </div>
+  </div>
+);
+
 const AuditorCards: React.FC<{ onNavigate: (p: Page) => void }> = ({ onNavigate }) => (
   <div>
     <h2 className="section-title mb-3">Internal Auditor — Read-Only Access</h2>
@@ -201,6 +234,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
 
   const renderRoleCards = () => {
     switch (currentUser.role) {
+      case 'field_officer':      return <FieldOfficerCards onNavigate={onNavigate} />;
       case 'credit_manager':     return <CreditManagerCards onNavigate={onNavigate} />;
       case 'deputy_manager_finance': return <DeputyManagerCards onNavigate={onNavigate} />;
       case 'compliance_team':    return <ComplianceTeamCards onNavigate={onNavigate} />;
@@ -211,6 +245,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
       case 'senior_manager_finance': return <SMFinanceCards onNavigate={onNavigate} />;
       case 'cfc':                return <CFCCards onNavigate={onNavigate} />;
       case 'accounts':           return <AccountsCards onNavigate={onNavigate} />;
+      case 'sales_team_user':    return <SalesTeamCards onNavigate={onNavigate} />;
       case 'auditor':            return <AuditorCards onNavigate={onNavigate} />;
       case 'admin':              return <AdminCards onNavigate={onNavigate} />;
       default:                   return <CreditManagerCards onNavigate={onNavigate} />;

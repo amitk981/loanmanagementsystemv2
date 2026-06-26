@@ -41,9 +41,10 @@ export type DocumentStatus =
   | 'verified' | 'rejected' | 'signed' | 'stamped' | 'notarised' | 'complete' | 'returned';
 
 export type Role =
-  | 'deputy_manager_finance' | 'credit_manager' | 'compliance_team'
+  | 'field_officer' | 'deputy_manager_finance' | 'credit_manager' | 'compliance_team'
   | 'company_secretary' | 'sanction_committee' | 'cfo' | 'director'
-  | 'senior_manager_finance' | 'cfc' | 'accounts' | 'auditor' | 'admin' | 'borrower';
+  | 'senior_manager_finance' | 'cfc' | 'accounts' | 'sales_team_user'
+  | 'auditor' | 'admin' | 'borrower';
 
 // ─── Entity interfaces ────────────────────────────────────────────────────
 

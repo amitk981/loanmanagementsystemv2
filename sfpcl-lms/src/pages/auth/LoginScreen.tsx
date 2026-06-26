@@ -9,9 +9,9 @@ interface LoginScreenProps {
 }
 
 const ALL_ROLES: Role[] = [
-  'credit_manager', 'deputy_manager_finance', 'compliance_team',
+  'field_officer', 'credit_manager', 'deputy_manager_finance', 'compliance_team',
   'company_secretary', 'sanction_committee', 'cfo', 'director',
-  'senior_manager_finance', 'cfc', 'accounts', 'auditor', 'admin', 'borrower',
+  'senior_manager_finance', 'cfc', 'accounts', 'sales_team_user', 'auditor', 'admin', 'borrower',
 ];
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onOpenMemberPortal }) => {

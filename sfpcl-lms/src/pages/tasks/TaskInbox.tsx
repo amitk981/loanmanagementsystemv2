@@ -55,6 +55,7 @@ const typeColors: Record<TaskType, string> = {
 };
 
 const roleTaskTypes: Record<string, TaskType[]> = {
+  field_officer:          ['completeness_check', 'document_verification'],
   deputy_manager_finance: ['completeness_check', 'appraisal'],
   credit_manager:         ['completeness_check', 'appraisal', 'sanction', 'default_review'],
   sanction_committee:     ['sanction', 'approval'],
@@ -64,12 +65,14 @@ const roleTaskTypes: Record<string, TaskType[]> = {
   company_secretary:      ['document_verification'],
   senior_manager_finance: ['sap_setup', 'disbursement'],
   accounts:               ['repayment_posting'],
+  sales_team_user:        ['repayment_posting'],
   cfc:                    ['sanction', 'approval', 'default_review'],
   auditor:                [], // view only
   admin:                  Object.keys(typeLabels) as TaskType[],
 };
 
 const allTasks: Task[] = [
+  { id: 'T000', type: 'document_verification',loanNo: 'LO00000047', borrower: 'Anjali Wagh',      amount: 100000, priority: 'high',     tatRemaining: '1 day',         status: 'draft',               assignedRole: 'field_officer',          assignedUser: 'Amit Kallapa', createdDate: '2026-06-18', dueDate: '2026-06-27', borrowerType: 'individual', isSpecialCase: false, isException: false },
   { id: 'T001', type: 'completeness_check',  loanNo: 'LO00000047', borrower: 'Ramesh Kulkarni',  amount: 250000, priority: 'critical', tatRemaining: '3 hrs',        status: 'submitted',           assignedRole: 'deputy_manager_finance', assignedUser: 'Amit Kallapa', createdDate: '2025-06-24', dueDate: '2025-06-25', borrowerType: 'individual', isSpecialCase: false, isException: false },
   { id: 'T002', type: 'appraisal',            loanNo: 'LO00000046', borrower: 'Sunita Kamble',    amount: 150000, priority: 'high',     tatRemaining: '1 day',         status: 'reference_generated',  assignedRole: 'deputy_manager_finance', createdDate: '2025-06-23', dueDate: '2025-06-26', borrowerType: 'individual', isSpecialCase: true,  isException: false },
   { id: 'T003', type: 'sanction',             loanNo: 'LO00000044', borrower: 'Kiran Pawar',      amount: 400000, priority: 'high',     tatRemaining: '2 days',        status: 'pending_sanction',     assignedRole: 'sanction_committee',     createdDate: '2025-06-22', dueDate: '2025-06-27', borrowerType: 'fpc',        isSpecialCase: false, isException: true  },

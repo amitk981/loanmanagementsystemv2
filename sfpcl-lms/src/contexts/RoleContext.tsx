@@ -10,6 +10,7 @@ interface User {
 }
 
 const ROLE_USERS: Record<Role, User> = {
+  field_officer:          { id: 'u00', name: 'Amit Kallapa',     email: 'amit.kallapa@sfpcl.in',    role: 'field_officer',         team: 'field_intake' },
   credit_manager:         { id: 'u01', name: 'Priya Kulkarni',   email: 'priya.kulkarni@sfpcl.in',  role: 'credit_manager',        team: 'credit_assessment' },
   deputy_manager_finance: { id: 'u02', name: 'Suresh Patil',     email: 'suresh.patil@sfpcl.in',    role: 'deputy_manager_finance', team: 'credit_assessment' },
   compliance_team:        { id: 'u03', name: 'Meera Joshi',      email: 'meera.joshi@sfpcl.in',     role: 'compliance_team',        team: 'compliance' },
@@ -20,12 +21,14 @@ const ROLE_USERS: Record<Role, User> = {
   senior_manager_finance: { id: 'u08', name: 'Deepak Rao',       email: 'deepak.rao@sfpcl.in',      role: 'senior_manager_finance', team: 'finance' },
   cfc:                    { id: 'u09', name: 'Santosh Kumar',     email: 'santosh.kumar@sfpcl.in',   role: 'cfc',                    team: 'finance' },
   accounts:               { id: 'u10', name: 'Kavita More',       email: 'kavita.more@sfpcl.in',     role: 'accounts',               team: 'accounts' },
+  sales_team_user:        { id: 'u13', name: 'Nikhil Jagtap',     email: 'nikhil.jagtap@sfpcl.in',   role: 'sales_team_user',        team: 'sales' },
   auditor:                { id: 'u11', name: 'Ramesh Iyer',       email: 'ramesh.iyer@sfpcl.in',     role: 'auditor',                team: 'audit' },
   admin:                  { id: 'u12', name: 'Sneha Bhosale',     email: 'sneha.bhosale@sfpcl.in',   role: 'admin',                  team: 'it' },
   borrower:               { id: 'b01', name: 'Ganesh Thorat',     email: 'ganesh.thorat@sfpcl.in',   role: 'borrower' },
 };
 
 export const ROLE_LABELS: Record<Role, string> = {
+  field_officer:          'Field Officer',
   credit_manager:         'Credit Manager',
   deputy_manager_finance: 'Deputy Manager – Finance',
   compliance_team:        'Compliance Team',
@@ -36,6 +39,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   senior_manager_finance: 'Senior Manager – Finance',
   cfc:                    'Chief Financial Controller',
   accounts:               'Accounts',
+  sales_team_user:        'Sales Team User',
   auditor:                'Auditor',
   admin:                  'Administrator',
   borrower:               'Borrower / Member',
@@ -64,6 +68,10 @@ export type Permission =
   | 'manage_interest' | 'manage_closure';
 
 const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
+  field_officer: [
+    'view_applications', 'create_application', 'edit_application',
+    'view_members',
+  ],
   deputy_manager_finance: [
     'view_applications', 'create_application', 'edit_application',
     'view_members', 'do_appraisal', 'do_completeness_check',
@@ -130,6 +138,11 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'view_monitoring', 'manage_interest',
     'view_registers', 'export_registers',
     'view_reports',
+  ],
+  sales_team_user: [
+    'view_applications', 'view_members',
+    'view_loan_accounts', 'manage_interest',
+    'view_registers', 'view_reports',
   ],
   auditor: [
     'view_applications', 'view_members',

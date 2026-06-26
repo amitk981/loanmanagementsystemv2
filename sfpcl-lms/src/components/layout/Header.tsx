@@ -5,6 +5,7 @@ import { Role } from '../../types';
 
 // Internal roles only — Borrower logs in separately via Login screen
 const ALL_ROLES: { role: Role; label: string; group?: string }[] = [
+  { role: 'field_officer',          label: 'Field Officer',               group: 'Intake' },
   { role: 'credit_manager',         label: 'Credit Manager',              group: 'Credit Assessment' },
   { role: 'deputy_manager_finance', label: 'Deputy Manager – Finance',    group: 'Credit Assessment' },
   { role: 'compliance_team',        label: 'Compliance Team',             group: 'Compliance' },
@@ -15,6 +16,7 @@ const ALL_ROLES: { role: Role; label: string; group?: string }[] = [
   { role: 'senior_manager_finance', label: 'Senior Manager – Finance',    group: 'Finance' },
   { role: 'cfc',                    label: 'Chief Financial Controller',  group: 'Finance' },
   { role: 'accounts',               label: 'Accounts',                    group: 'Finance' },
+  { role: 'sales_team_user',        label: 'Sales Team User',             group: 'Sales' },
   { role: 'auditor',                label: 'Auditor',                     group: 'Audit' },
   { role: 'admin',                  label: 'Administrator',               group: 'IT' },
   // Note: 'borrower' role is NOT listed here — borrowers use the login screen
@@ -29,14 +31,17 @@ const notifications = [
 
 interface HeaderProps {
   activePage?: string;
+  onNavigate?: (page: string) => void;
+  onSearch?: (query: string) => void;
   onLogout?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ activePage, onLogout }) => {
+const Header: React.FC<HeaderProps> = ({ activePage, onNavigate, onSearch, onLogout }) => {
   const { currentUser, setRole } = useRole();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showRolePicker, setShowRolePicker] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const closeAll = () => {
     setShowNotifications(false);
@@ -52,6 +57,14 @@ const Header: React.FC<HeaderProps> = ({ activePage, onLogout }) => {
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && searchQuery.trim()) {
+                onSearch?.(searchQuery.trim());
+                closeAll();
+              }
+            }}
             placeholder="Search: borrower name, app no., loan no., folio, PAN, Aadhaar last 4, SAP code, mobile, cheque no…"
             className="w-full h-10 pl-10 pr-4 rounded-lg border border-slate-200 text-sm bg-slate-50/80 shadow-inner shadow-slate-100 focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all"
           />
@@ -139,9 +152,16 @@ const Header: React.FC<HeaderProps> = ({ activePage, onLogout }) => {
                   </div>
                 </div>
               ))}
-              <div className="px-4 py-3 text-center">
-                <span className="text-sm text-green-600 font-medium cursor-pointer">View all notifications</span>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  onNavigate?.('notifications');
+                  closeAll();
+                }}
+                className="w-full px-4 py-3 text-center text-sm text-green-600 font-medium hover:bg-green-50 transition-colors"
+              >
+                View all notifications
+              </button>
             </div>
           )}
         </div>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Agentation } from 'agentation';
-import { RoleProvider, useRole } from './contexts/RoleContext';
+import { Permission, RoleProvider, useRole } from './contexts/RoleContext';
 import { Role } from './types';
 import AppShell from './components/layout/AppShell';
 import LoginScreen from './pages/auth/LoginScreen';
@@ -31,9 +31,12 @@ import LoanClosureHub from './pages/closure/LoanClosureHub';
 import InterestManagement from './pages/interest/InterestManagement';
 import SettingsHub from './pages/settings/SettingsHub';
 import ReportsMIS from './pages/reports/ReportsMIS';
+import GlobalSearchResults from './pages/search/GlobalSearchResults';
+import NotificationsCenter from './pages/notifications/NotificationsCenter';
 
 export type Page =
   | 'dashboard' | 'tasks'
+  | 'search' | 'notifications'
   | 'applications' | 'applications/new' | 'applications/detail'
   | 'members' | 'members/profile' | 'members/borrower360'
   | 'appraisal' | 'sanction'
@@ -49,15 +52,46 @@ export type Page =
 
 type AuthView = 'staff' | 'memberLogin' | 'memberActivation' | 'memberForgot';
 
+const PAGE_PERMISSIONS: Partial<Record<Page, Permission>> = {
+  tasks: 'view_applications',
+  applications: 'view_applications',
+  'applications/new': 'create_application',
+  'applications/detail': 'view_applications',
+  members: 'view_members',
+  'members/profile': 'view_members',
+  'members/borrower360': 'view_members',
+  appraisal: 'do_appraisal',
+  sanction: 'view_sanction',
+  documentation: 'view_documentation',
+  disbursement: 'initiate_disbursement',
+  cfc: 'authorise_disbursement',
+  interest: 'manage_interest',
+  'loan-accounts': 'view_loan_accounts',
+  'loan-accounts/detail': 'view_loan_accounts',
+  repayments: 'post_repayment',
+  monitoring: 'view_monitoring',
+  defaults: 'manage_defaults',
+  closure: 'manage_closure',
+  compliance: 'view_compliance',
+  registers: 'view_registers',
+  reports: 'view_reports',
+  grievances: 'view_compliance',
+  audit: 'view_audit',
+  settings: 'view_settings',
+  borrower: 'view_own_loan',
+};
+
 // Inner component so it can use useRole hook (inside RoleProvider)
 const AppInner: React.FC = () => {
-  const { currentUser, setRole } = useRole();
+  const { currentUser, setRole, can } = useRole();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [page, setPage] = useState<Page>('dashboard');
   const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [selectedLoanAccountId, setSelectedLoanAccountId] = useState<string | null>(null);
   const [authView, setAuthView] = useState<AuthView>('staff');
+  const [blockedPage, setBlockedPage] = useState<Page | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const handleLogin = (role: Role) => {
     setRole(role);
@@ -109,6 +143,13 @@ const AppInner: React.FC = () => {
   }
 
   const navigate = (target: Page, id?: string) => {
+    const requiredPermission = PAGE_PERMISSIONS[target];
+    if (requiredPermission && !can(requiredPermission)) {
+      setBlockedPage(target);
+      setPage('dashboard');
+      return;
+    }
+    setBlockedPage(null);
     setPage(target);
     if (
       ['applications/detail', 'appraisal', 'sanction', 'documentation', 'disbursement', 'cfc'].includes(target) && id
@@ -119,10 +160,19 @@ const AppInner: React.FC = () => {
     if (target === 'loan-accounts/detail' && id) setSelectedLoanAccountId(id);
   };
 
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    navigate('search');
+  };
+
   const renderPage = () => {
     switch (page) {
       case 'dashboard':
         return <Dashboard onNavigate={navigate} />;
+      case 'search':
+        return <GlobalSearchResults query={searchQuery} onNavigate={navigate} />;
+      case 'notifications':
+        return <NotificationsCenter onNavigate={navigate} />;
       case 'tasks':
         return <TaskInbox onNavigate={navigate} />;
       case 'applications':
@@ -207,7 +257,17 @@ const AppInner: React.FC = () => {
   const activePage = page.split('/')[0] as Page;
 
   return (
-    <AppShell activePage={activePage} onNavigate={p => navigate(p as Page)} onLogout={handleLogout}>
+    <AppShell activePage={activePage} onNavigate={p => navigate(p as Page)} onSearch={handleSearch} onLogout={handleLogout}>
+      {blockedPage && (
+        <div className="px-6 pt-6">
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <p className="font-semibold">Access blocked for {currentUser.role.replace(/_/g, ' ')}</p>
+            <p className="mt-0.5">
+              The requested workspace ({blockedPage.replace(/\//g, ' / ')}) is hidden for this role and actions remain disabled unless the role has the required permission.
+            </p>
+          </div>
+        </div>
+      )}
       {renderPage()}
     </AppShell>
   );

@@ -199,7 +199,7 @@ export const loanApplications: LoanApplication[] = [
     landAreaAcres: 1.5, status: 'draft', documentationStatus: 'not_started',
     disbursementStatus: 'pending_documentation', eligibleAmount: 0,
     shareholdingLimit: 180000, landBasedLimit: 30000, isException: false,
-    currentOwner: 'Field Officer', currentOwnerRole: 'credit_manager',
+    currentOwner: 'Field Officer', currentOwnerRole: 'field_officer',
     submittedAt: '',
     sanctionDecision: 'pending', riskRating: 'low', tatDaysRemaining: 4,
   },
