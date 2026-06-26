@@ -13,6 +13,8 @@ const MP07_DocumentChecklist: React.FC = () => {
     { name: '7/12 Extract',               status: 'verified',   date: '2024-08-14', section: 'Land', note: '4.5 acres under cultivation' },
     { name: 'Crop Plan',                  status: 'verified',   date: '2024-08-14', section: 'Crop', note: 'Grapes and tomato cultivation plan' },
     { name: 'Six-Month Bank Statement',   status: 'deficient',  date: '2024-08-15', section: 'Bank', note: 'February to April pages requested again' },
+    { name: 'Cancelled Cheque',           status: 'pending',    date: null,         section: 'Bank', note: 'Required before disbursement; can be uploaded now' },
+    { name: 'Additional Documents',       status: 'pending',    date: null,         section: 'Conditional', note: 'Shown when SFPCL raises a deficiency or policy condition' },
     { name: 'Term Sheet',                 status: 'available',  date: '2024-09-15', section: 'Sanction', note: 'Signed by CFO for amount up to ₹5,00,000' },
     { name: 'Loan Agreement',             status: 'available',  date: '2024-09-18', section: 'Legal', note: 'Stamped and notarised' },
     { name: 'Disbursement Advice',        status: 'available',  date: '2024-09-22', section: 'Disbursement', note: 'UTR retained in loan file' },
@@ -110,6 +112,7 @@ const MP07_DocumentChecklist: React.FC = () => {
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">Document Type</label>
                 <select className="w-full px-4 py-2.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
                   <option>Six-Month Bank Statement</option>
+                  <option>Cancelled Cheque</option>
                   <option>PAN Card</option>
                   <option>Aadhaar Card</option>
                   <option>Nominee PAN/Aadhaar</option>

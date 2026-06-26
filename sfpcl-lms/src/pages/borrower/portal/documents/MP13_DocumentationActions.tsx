@@ -4,12 +4,15 @@ import StatusBadge from '../../../../components/ui/StatusBadge';
 
 const MP13_DocumentationActions: React.FC = () => {
   const actions = [
-    { name: 'Term Sheet', status: 'pending_signature', action: 'Acknowledge terms', note: 'Borrower and nominee signature required.' },
-    { name: 'Loan Agreement', status: 'pending_signature', action: 'Upload signed copy', note: 'Stamped and notarised copy will be verified by Compliance.' },
-    { name: 'Power of Attorney', status: 'notarised', action: 'Download copy', note: 'Executed and held by Company Secretary.' },
-    { name: 'Tri-party Agreement', status: 'signed', action: 'View declaration', note: 'Applicable for subsidiary deduction repayment.' },
-    { name: 'SH-4 Physical Share Security', status: 'held', action: 'View status', note: 'Physical share security is held in custody.' },
-    { name: 'Bank Verification Letter', status: 'verified', action: 'View letter', note: 'Bank account and signature verified.' },
+    { name: 'Term Sheet', status: 'pending_borrower', action: 'Download for signing', note: 'Borrower and nominee signature required.' },
+    { name: 'Loan Agreement', status: 'pending_borrower', action: 'Upload signed copy', note: 'Stamped and notarised copy will be verified by Compliance.' },
+    { name: 'Power of Attorney', status: 'under_sfpcl_review', action: 'View requirement', note: 'Farmer and nominee signatures required; final acceptance is internal only.' },
+    { name: 'Tri-party Agreement', status: 'submitted', action: 'View declaration', note: 'Required when repayment is through subsidiary deduction.' },
+    { name: 'SH-4 Physical Share Security', status: 'submitted', action: 'View submission instructions', note: 'Original physical form must be submitted at the office.' },
+    { name: 'CDSL Pledge', status: 'not_required', action: 'View status', note: 'Shown as required when shares are held in demat form.' },
+    { name: 'Cancelled Cheque', status: 'pending_borrower', action: 'Upload cheque copy', note: 'Used only for bank account verification before disbursement.' },
+    { name: 'Blank-Dated Cheque', status: 'submitted', action: 'View physical submission', note: 'Physical custody status only; cheque details are not displayed.' },
+    { name: 'Bank Verification Letter / Declaration', status: 'required', action: 'Upload resolution document', note: 'Required only when signature or bank mismatch is raised.' },
   ];
 
   return (
@@ -21,9 +24,9 @@ const MP13_DocumentationActions: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {[
-          ['Pending borrower actions', '2'],
-          ['Documents accepted', '4'],
-          ['Security items held', '2'],
+          ['Pending borrower actions', '4'],
+          ['Submitted for review', '4'],
+          ['Final approvals by SFPCL', 'Internal only'],
         ].map(([label, value]) => (
           <div key={label} className="bg-white rounded-xl border border-slate-100 p-4">
             <p className="text-xs text-slate-500">{label}</p>
@@ -59,12 +62,18 @@ const MP13_DocumentationActions: React.FC = () => {
                   ? 'bg-green-600 hover:bg-green-700 text-white'
                   : 'border border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}>
-                {item.action.includes('Upload') ? <Upload size={15} /> : <Download size={15} />}
-                {item.action}
-              </button>
+                  {item.action.includes('Upload') ? <Upload size={15} /> : item.action.includes('View') ? <FileSignature size={15} /> : <Download size={15} />}
+                  {item.action}
+                </button>
             </div>
           ))}
         </div>
+      </div>
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+        <p className="text-sm font-semibold text-amber-900">Internal verification required</p>
+        <p className="text-xs text-amber-800 mt-1">
+          You can submit or view borrower-side documents here. Only authorised SFPCL users can mark legal documents accepted or complete the final documentation approval.
+        </p>
       </div>
     </div>
   );

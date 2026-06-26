@@ -31,7 +31,8 @@ export type SecurityType = 'poa' | 'sh4' | 'cdsl_pledge' | 'blank_cheque' | 'tri
 export type SecurityStatus = 'pending' | 'executed' | 'held' | 'pledged' | 'invoked' | 'released' | 'returned';
 
 export type DocumentType =
-  | 'pan' | 'aadhaar' | 'share_certificate' | 'land_712' | 'crop_plan' | 'bank_statement'
+  | 'pan' | 'aadhaar' | 'nominee_pan' | 'nominee_aadhaar' | 'witness_pan' | 'witness_aadhaar'
+  | 'share_certificate' | 'land_712' | 'crop_plan' | 'bank_statement'
   | 'poa' | 'tri_party' | 'sh4' | 'term_sheet' | 'loan_agreement' | 'cancelled_cheque'
   | 'blank_cheque' | 'bank_verification_letter' | 'checklist' | 'appraisal_note'
   | 'rejection_note' | 'noc' | 'extension_note' | 'non_payment_note';

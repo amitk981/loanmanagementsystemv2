@@ -6,6 +6,10 @@ import { documents } from '../../data/mockData';
 const docLabels: Record<string, string> = {
   pan: 'PAN Card',
   aadhaar: 'Aadhaar Card',
+  nominee_pan: 'Nominee PAN Card',
+  nominee_aadhaar: 'Nominee Aadhaar / OVD',
+  witness_pan: 'Witness PAN Card',
+  witness_aadhaar: 'Witness Aadhaar / OVD',
   share_certificate: 'Share Certificates',
   land_712: 'Land Records / 7/12 Extract',
   crop_plan: 'Crop Plan',
@@ -23,11 +27,28 @@ const docLabels: Record<string, string> = {
 };
 
 const groupDocs = (docs: DocumentRecord[]) => ({
-  'KYC & Identity': docs.filter(d => ['pan', 'aadhaar', 'share_certificate'].includes(d.documentType)),
+  'KYC & Identity': docs.filter(d => ['pan', 'aadhaar', 'nominee_pan', 'nominee_aadhaar', 'witness_pan', 'witness_aadhaar', 'share_certificate'].includes(d.documentType)),
   'Agriculture Evidence': docs.filter(d => ['land_712', 'crop_plan', 'bank_statement'].includes(d.documentType)),
   'Legal Documents': docs.filter(d => ['poa', 'tri_party', 'term_sheet', 'loan_agreement', 'sh4'].includes(d.documentType)),
   'Bank & Security': docs.filter(d => ['cancelled_cheque', 'blank_cheque', 'bank_verification_letter'].includes(d.documentType)),
 });
+
+const checklistMeta: Record<string, { owner: string; condition: string; beforeDisbursement: string; deficiency: string }> = {
+  pan: { owner: 'Credit / Compliance', condition: 'All individual borrowers', beforeDisbursement: 'Verified', deficiency: 'Missing borrower identity blocks disbursement readiness.' },
+  aadhaar: { owner: 'Credit / Compliance', condition: 'All individual borrowers', beforeDisbursement: 'Verified', deficiency: 'Masked Aadhaar / OVD copy must be verified.' },
+  nominee_pan: { owner: 'Credit / Compliance', condition: 'All applications with nominee', beforeDisbursement: 'Verified', deficiency: 'Nominee PAN must be attached or exception approved.' },
+  nominee_aadhaar: { owner: 'Credit / Compliance', condition: 'All applications with nominee', beforeDisbursement: 'Verified', deficiency: 'Nominee Aadhaar / OVD must be attached or exception approved.' },
+  witness_pan: { owner: 'Compliance', condition: 'Documentation stage', beforeDisbursement: 'Verified', deficiency: 'Witness identity and shareholder status must be verified.' },
+  witness_aadhaar: { owner: 'Compliance', condition: 'Documentation stage', beforeDisbursement: 'Verified', deficiency: 'Witness Aadhaar / OVD verification is pending.' },
+  cancelled_cheque: { owner: 'Compliance / Finance', condition: 'All disbursements', beforeDisbursement: 'Verified', deficiency: 'Bank transfer cannot proceed until cheque is verified.' },
+  blank_cheque: { owner: 'Compliance / CS', condition: 'Security', beforeDisbursement: 'Received and logged', deficiency: 'Original custody must be logged in Security Register.' },
+  poa: { owner: 'Compliance / CS', condition: 'All loan documentation per SOP', beforeDisbursement: 'Signed, stamped, notarised', deficiency: 'PoA must be executed before final documentation approval.' },
+  tri_party: { owner: 'Compliance / CS', condition: 'Repayment through subsidiary', beforeDisbursement: 'Signed', deficiency: 'Agreement is conditional on subsidiary deduction route.' },
+  sh4: { owner: 'Compliance / CS', condition: 'Physical shares', beforeDisbursement: 'Signed and held in custody', deficiency: 'Borrower and shareholder witness signatures are required.' },
+  term_sheet: { owner: 'Compliance', condition: 'All loans', beforeDisbursement: 'Signed by required parties', deficiency: 'Borrower, nominee and authority signatures must be complete.' },
+  loan_agreement: { owner: 'Compliance / CS', condition: 'All loans', beforeDisbursement: 'Stamped, notarised and signed', deficiency: 'Loan agreement execution is mandatory.' },
+  bank_verification_letter: { owner: 'Credit / Compliance', condition: 'Signature mismatch', beforeDisbursement: 'Bank signed / declaration verified', deficiency: 'Open mismatch blocks final approval and disbursement.' },
+};
 
 const statusConfig = {
   not_started:     { icon: <Clock size={14} className="text-slate-400" />, text: 'Not Started', cls: 'text-slate-500' },
@@ -129,6 +150,19 @@ const DocumentChecklist: React.FC<DocumentChecklistProps> = ({ applicationId }) 
                             </span>
                           </div>
                         )}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 mt-2 text-xs text-slate-500">
+                          <span>Owner: {checklistMeta[doc.documentType]?.owner || 'Compliance'}</span>
+                          <span>Required when: {checklistMeta[doc.documentType]?.condition || doc.requiredFlag}</span>
+                          <span>Before disbursement: {checklistMeta[doc.documentType]?.beforeDisbursement || 'Verified'}</span>
+                          <span>
+                            Verified: {doc.verifiedBy && doc.verifiedAt ? `${doc.verifiedBy} on ${new Date(doc.verifiedAt).toLocaleDateString('en-IN')}` : 'Pending'}
+                          </span>
+                          {['pending_upload', 'not_started', 'uploaded', 'under_review', 'rejected'].includes(doc.status) && (
+                            <span className="md:col-span-2 text-amber-700">
+                              Deficiency: {doc.rejectionReason || checklistMeta[doc.documentType]?.deficiency || 'Review and update this checklist item.'}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className={`flex items-center gap-1 text-xs font-medium flex-shrink-0 ${sc.cls}`}>
                         {sc.icon}

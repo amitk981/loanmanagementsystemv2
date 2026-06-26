@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MessageSquareWarning, Send, Search, Phone, Mail, Clock, CheckCircle2 } from 'lucide-react';
+import { MessageSquareWarning, Send, Search, Phone, Mail, Clock, CheckCircle2, FileText, BadgeCheck } from 'lucide-react';
 import StatusBadge from '../../../../components/ui/StatusBadge';
 
 const MP24_SupportGrievance: React.FC = () => {
@@ -9,6 +9,15 @@ const MP24_SupportGrievance: React.FC = () => {
 
   const grievances = [
     { id: 'GR-001', subject: 'Interest calculation query on Dec 2024 instalment', status: 'resolved', date: '10 Jan 2025', response: 'Interest calculated at 12% p.a. on outstanding principal as per loan agreement.' },
+  ];
+  const guideSections = [
+    { title: 'Who Can Apply', text: 'Active SFPCL members can apply for approved productive agriculture and allied purposes. Final loan approval is subject to SFPCL review.' },
+    { title: 'Required Documents', text: 'PAN, Aadhaar / OVD, nominee KYC, share certificate where applicable, 7/12 extract, crop plan, bank statement and cancelled cheque may be required.' },
+    { title: 'Application Steps', text: 'Complete the application, upload documents, review declarations and submit. SFPCL may ask for corrections before appraisal starts.' },
+    { title: 'After Submission', text: 'SFPCL checks completeness, assesses eligibility, completes appraisal and records the approval outcome.' },
+    { title: 'Documentation & Signing', text: 'After sanction, you may need to sign the Term Sheet, Loan Agreement, PoA, tri-party agreement, SH-4 or CDSL pledge documents.' },
+    { title: 'Disbursement & Repayment', text: 'Payment is processed only after documentation is complete. Repayment may happen directly or through approved subsidiary deductions.' },
+    { title: 'Closure & NOC', text: 'After full repayment, SFPCL completes closure checks, returns eligible security documents and issues NOC where applicable.' },
   ];
 
   return (
@@ -22,6 +31,26 @@ const MP24_SupportGrievance: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
+          <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
+              <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+                <FileText size={18} className="text-green-600" />
+                Help & Required Documents Guide
+              </h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-6">
+              {guideSections.map(section => (
+                <div key={section.title} className="rounded-lg border border-slate-100 bg-slate-50 p-4">
+                  <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                    <BadgeCheck size={15} className="text-green-600" />
+                    {section.title}
+                  </h4>
+                  <p className="text-xs text-slate-600 mt-2 leading-relaxed">{section.text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 bg-slate-50">
               <h3 className="font-semibold text-slate-900 flex items-center gap-2">

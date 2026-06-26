@@ -3,7 +3,7 @@ import { FolderOpen, ChevronRight, Check, AlertTriangle, CheckCircle2, Lock, Fil
 import StatusBadge from '../../components/ui/StatusBadge';
 import StageStepper, { Step } from '../../components/ui/StageStepper';
 import DocumentChecklist from '../../components/loan/DocumentChecklist';
-import { loanApplications, securities } from '../../data/mockData';
+import { documents, loanApplications, securities } from '../../data/mockData';
 import { useRole, type Permission } from '../../contexts/RoleContext';
 
 const fmt = (n: number) => '₹' + n.toLocaleString('en-IN');
@@ -36,11 +36,13 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
   const [isCreditManagerApproved, setIsCreditManagerApproved] = useState(false);
   const [isSanctionFinalApproved, setIsSanctionFinalApproved] = useState(false);
   const [isFinanceSigned, setIsFinanceSigned] = useState(false);
+  const [approvalCondition, setApprovalCondition] = useState('');
   const [completedLegalActions, setCompletedLegalActions] = useState<string[]>([]);
   const [activeSection, setActiveSection] = useState<'checklist' | 'legal' | 'security' | 'approvals' | 'impact'>('checklist');
   const { can } = useRole();
 
   const app = docQueue.find(a => a.id === selected);
+  const appDocuments = documents.filter(d => d.applicationId === selected);
   const appSecurities = securities.filter(s => s.applicationId === selected);
   const legalActions = [
     { screen: 'S32', name: 'Term Sheet', owner: 'Compliance Team', status: 'pending_signature' },
@@ -64,6 +66,9 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
   };
 
   const approvalProgressCount = [isCSApproved, isCreditManagerApproved, isSanctionFinalApproved, isFinanceSigned].filter(Boolean).length;
+  const mandatoryChecklistClear = appDocuments.every(doc =>
+    doc.requiredFlag !== 'mandatory' || ['verified', 'complete', 'notarised'].includes(doc.status)
+  );
 
   const sectionTabs = [
     { id: 'checklist', label: 'Checklist', badge: app ? undefined : 0 },
@@ -162,12 +167,12 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
   const legalActionButtons = (screen: string) => {
     const actionMap: Record<string, string[]> = {
       S28: ['Generate PoA', 'Upload Signed Copy', 'Mark Stamped', 'Mark Notarised', 'Send for Correction'],
-      S29: ['Generate Agreement', 'Upload Signed Agreement', 'Mark Active'],
-      S30: ['Generate SH-4 Checklist', 'Upload Scanned SH-4', 'Mark Original Received', 'Assign Custody'],
-      S31: ['Create Pledge Task', 'Upload PRF', 'Enter PSN', 'Mark Accepted', 'Mark Rejected'],
-      S32: ['Generate Term Sheet', 'Preview', 'Send for Signature', 'Upload Signed Copy', 'Route to CFO / Directors'],
-      S33: ['Generate Agreement', 'Upload Signed Copy', 'Mark Stamped', 'Mark Notarised', 'Link Witness'],
-      S34: ['Generate Bank Letter', 'Upload Bank Letter', 'Upload Declaration', 'Mark Resolved', 'Mark Unresolved'],
+      S29: ['Generate Agreement', 'Upload Signed Agreement', 'Mark Active', 'Link Reconciliation'],
+      S30: ['Generate SH-4 Checklist', 'Upload Scanned SH-4', 'Mark Original Received', 'Assign Custody', 'Return on Closure', 'Invoke After Recovery Approval'],
+      S31: ['Create Pledge Task', 'Upload PRF', 'Enter PSN', 'Mark Accepted', 'Mark Rejected', 'Start Invocation Request', 'Start Unpledge Request'],
+      S32: ['Generate Term Sheet', 'Preview', 'Send for Signature', 'Upload Signed Copy', 'Route to CFO / Directors', 'Mark Complete'],
+      S33: ['Generate Agreement', 'Upload Signed Copy', 'Mark Stamped', 'Mark Notarised', 'Link Witness', 'Send to Checklist'],
+      S34: ['Generate Bank Letter', 'Upload Bank Letter', 'Upload Declaration', 'Mark Resolved', 'Mark Unresolved and Block'],
     };
 
     return actionMap[screen] || [];
@@ -256,6 +261,16 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
       status: completedLegalCount > 0 ? 'events_staged' : 'not_started',
       note: completedLegalCount > 0 ? 'Local audit preview records document action changes.' : 'No local action has been staged yet.',
     },
+  ];
+  const readinessChecks = [
+    { label: 'Sanction approved', status: app?.sanctionDecision === 'approved' ? 'complete' : 'blocked' },
+    {
+      label: 'Mandatory checklist clear or exception approved',
+      status: mandatoryChecklistClear ? 'complete' : 'blocked',
+    },
+    { label: 'Signature mismatch resolved', status: completedLegalActions.includes('S34') ? 'complete' : 'blocked' },
+    { label: 'Security document complete', status: completedLegalActions.includes(app?.shareMode === 'physical' ? 'S30' : 'S31') ? 'complete' : 'blocked' },
+    { label: 'Term Sheet and Loan Agreement signed', status: completedLegalActions.includes('S32') && completedLegalActions.includes('S33') ? 'complete' : 'blocked' },
   ];
 
   return (
@@ -529,25 +544,47 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
                             <Check size={16} /> Documentation finalized and locked. Ready for disbursement.
                           </div>
                         ) : (
-                          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="text-sm text-amber-700 bg-amber-50 p-3 rounded-lg border border-amber-200 flex items-center gap-2">
-                              <AlertTriangle size={16} />
-                              {legalActionsComplete ? `${approvalProgressCount}/4 approvals complete.` : `${completedLegalCount}/${legalActions.length} legal actions complete.`}
+                          <div className="mt-4 space-y-4">
+                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
+                              {readinessChecks.map(check => (
+                                <div key={check.label} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                                  <span className="text-xs font-medium text-slate-700">{check.label}</span>
+                                  <StatusBadge label={check.status} size="sm" />
+                                </div>
+                              ))}
                             </div>
-                            {can('manage_documentation') ? (
-                              <button
-                                className="btn-primary disabled:opacity-50"
-                                disabled={!legalActionsComplete || !approvalsComplete}
-                                onClick={() => setIsDocComplete(true)}
-                                title={!legalActionsComplete || !approvalsComplete ? 'Complete legal actions and final approvals first' : undefined}
-                              >
-                                <Lock size={16} className="mr-2" /> Mark as Complete
-                              </button>
-                            ) : (
-                              <button className="btn-primary opacity-50 cursor-not-allowed" disabled title="Company Secretary or Compliance team only">
-                                <Lock size={16} className="mr-2" /> Mark as Complete
-                              </button>
-                            )}
+                            <textarea
+                              rows={3}
+                              value={approvalCondition}
+                              onChange={(event) => setApprovalCondition(event.target.value)}
+                              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                              placeholder="Approver comments or condition to be carried forward"
+                            />
+                            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                              <div className="text-sm text-amber-700 bg-amber-50 p-3 rounded-lg border border-amber-200 flex items-center gap-2">
+                                <AlertTriangle size={16} />
+                                {legalActionsComplete ? `${approvalProgressCount}/4 approvals complete.` : `${completedLegalCount}/${legalActions.length} legal actions complete.`}
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                <button className="btn-secondary text-xs">Return for Correction</button>
+                                <button className="btn-secondary text-xs" disabled={!approvalCondition}>Add Condition</button>
+                                <button className="btn-secondary text-xs" disabled={!legalActionsComplete}>Submit to Next Approver</button>
+                                {can('manage_documentation') ? (
+                                  <button
+                                    className="btn-primary disabled:opacity-50"
+                                    disabled={!legalActionsComplete || !approvalsComplete || !mandatoryChecklistClear}
+                                    onClick={() => setIsDocComplete(true)}
+                                    title={!legalActionsComplete || !approvalsComplete || !mandatoryChecklistClear ? 'Complete legal actions, mandatory checklist items and final approvals first' : undefined}
+                                  >
+                                    <Lock size={16} className="mr-2" /> Mark Ready for SAP / Disbursement
+                                  </button>
+                                ) : (
+                                  <button className="btn-primary opacity-50 cursor-not-allowed" disabled title="Company Secretary or Compliance team only">
+                                    <Lock size={16} className="mr-2" /> Mark Ready for SAP / Disbursement
+                                  </button>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
