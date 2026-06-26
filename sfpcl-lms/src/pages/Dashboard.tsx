@@ -51,8 +51,8 @@ const FieldOfficerCards: React.FC<{ onNavigate: (p: Page) => void }> = ({ onNavi
     <h2 className="section-title mb-3">Field Officer — Assisted Intake</h2>
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
       <KPICard title="Draft Applications" value="1" subtitle="field-assisted intake" icon={ClipboardList} highlight="warning" onClick={() => onNavigate('applications')} />
-      <KPICard title="Member Verification" value="3" subtitle="folio and KYC checks" icon={UserCheck} onClick={() => onNavigate('members')} />
-      <KPICard title="Documents to Collect" value="4" subtitle="borrower uploads/support" icon={FileCheck} highlight="warning" onClick={() => onNavigate('tasks')} />
+      <KPICard title="Member Details Pending" value="3" subtitle="folio / KYC details to collect" icon={UserCheck} onClick={() => onNavigate('members')} />
+      <KPICard title="Documents to Collect" value="4" subtitle="borrower upload support" icon={FileCheck} highlight="warning" onClick={() => onNavigate('applications')} />
       <KPICard title="Submitted Today" value="0" subtitle="ready for finance review" icon={CheckCircle2} onClick={() => onNavigate('applications')} />
     </div>
     <div className="card border-amber-200 bg-amber-50 mt-4">
@@ -249,6 +249,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         { id: 'admin1', applicationNumber: 'SYS-001', memberName: 'Role permission review due', status: 'pending', loanAmount: 0 },
         { id: 'admin2', applicationNumber: 'SYS-002', memberName: 'Approval matrix update pending', status: 'pending', loanAmount: 0 }
       ] as any[]
+    : currentUser.role === 'field_officer'
+    ? [
+        { id: 'f1', applicationNumber: 'LO00000042', memberName: 'Ramesh Patil', rightStatus: 'Borrower follow-up due', statusBadge: 'Docs Pending', amount: 450000 },
+        { id: 'f2', applicationNumber: 'LO00000043', memberName: 'Sunita Bhosale', rightStatus: 'TAT due', statusBadge: 'KYC Upload', amount: 350000, isTatDue: true },
+        { id: 'f3', applicationNumber: 'LO00000044', memberName: 'Kisan Samruddhi FPC Ltd.', rightStatus: 'Collect details', statusBadge: 'Nominee / witness pending', amount: 800000 },
+        { id: 'f4', applicationNumber: 'LO00000039', memberName: 'Vijay Deshmukh', rightStatus: 'Finance review · Read-only', statusBadge: 'Submitted', amount: 200000 },
+      ] as any[]
     : currentUser.role === 'auditor'
     ? loanApplications.slice(0, 4)
     : (currentUser.role === 'credit_manager' || currentUser.role === 'deputy_manager_finance' || currentUser.role === 'compliance_team' || currentUser.role === 'company_secretary' || currentUser.role === 'sanction_committee' || currentUser.role === 'cfo' || currentUser.role === 'director' || currentUser.role === 'senior_manager_finance' || currentUser.role === 'cfc' || currentUser.role === 'accounts' || currentUser.role === 'sales_team')
@@ -365,6 +372,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             <p className="text-2xl font-bold text-indigo-700 num leading-tight">Active</p>
             <p className="text-xs text-indigo-600">all systems operational</p>
           </div>
+        ) : currentUser.role === 'field_officer' ? (
+          <div className="sm:text-right rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 flex-shrink-0">
+            <p className="text-xs text-slate-500 font-medium">Assigned intake</p>
+            <p className="text-2xl font-bold text-slate-900 num leading-tight">8</p>
+            <p className="text-xs text-slate-500">open items</p>
+          </div>
         ) : (
           <div className="sm:text-right rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 flex-shrink-0">
             <p className="text-xs text-slate-500">Section 186 utilisation</p>
@@ -387,6 +400,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               ? `${dashboardStats.openExceptions} approval exception${dashboardStats.openExceptions > 1 ? 's' : ''} visible in system.`
               : currentUser.role === 'auditor'
               ? `${dashboardStats.openExceptions} exception${dashboardStats.openExceptions > 1 ? 's' : ''} awaiting CFO + Director approval.`
+              : currentUser.role === 'field_officer'
+              ? `${dashboardStats.openExceptions} assigned application${dashboardStats.openExceptions > 1 ? 's' : ''} have open exceptions.`
               : (currentUser.role === 'sanction_committee' || currentUser.role === 'cfo' || currentUser.role === 'director')
               ? `${dashboardStats.openExceptions} exception${dashboardStats.openExceptions > 1 ? 's' : ''} awaiting escalated approval.`
               : (currentUser.role === 'credit_manager' || currentUser.role === 'deputy_manager_finance' || currentUser.role === 'compliance_team' || currentUser.role === 'senior_manager_finance' || currentUser.role === 'cfc' || currentUser.role === 'accounts')
@@ -414,13 +429,15 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
               ? "No administrator action required."
               : currentUser.role === 'auditor'
               ? "Available for audit review. No auditor action required."
+              : currentUser.role === 'field_officer'
+              ? "CFO / Director review pending. Intake is read-only until resolved."
               : (currentUser.role === 'sanction_committee' || currentUser.role === 'cfo' || currentUser.role === 'director')
               ? "Exception cases require escalated matrix (CFO + 2 Directors) and Register update."
               : "Exception register entries pending approval. Disbursement blocked until resolved."
           }
           actions={
-            <button onClick={() => onNavigate('compliance')} className="text-xs font-semibold underline">
-              View exception register
+            <button onClick={() => onNavigate(currentUser.role === 'field_officer' ? 'applications' : 'compliance')} className="text-xs font-semibold underline">
+              {currentUser.role === 'field_officer' ? 'View assigned applications' : 'View exception register'}
             </button>
           }
         />
@@ -450,8 +467,14 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             ? `${urgentApps.length} TAT exception${urgentApps.length > 1 ? 's' : ''} available for review`
             : currentUser.role === 'admin'
             ? `${urgentApps.length} system configuration item${urgentApps.length > 1 ? 's' : ''} need review`
+            : currentUser.role === 'field_officer'
+            ? `${urgentApps.length} intake follow-up${urgentApps.length > 1 ? 's' : ''} at TAT deadline`
             : `${urgentApps.length} application${urgentApps.length > 1 ? 's' : ''} at TAT deadline`}
-          message={urgentApps.map(a => `${a.applicationNumber} (${a.memberName})`).join(' · ')}
+          message={
+            currentUser.role === 'field_officer'
+              ? 'LO00000042: borrower documents pending · LO00000043: KYC upload pending'
+              : urgentApps.map(a => `${a.applicationNumber} (${a.memberName})`).join(' · ')
+          }
         />
       )}
 
@@ -464,7 +487,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
         <div className="card bg-white h-full flex flex-col">
           <div className="flex items-center justify-between mb-4">
             <h2 className="section-title">
-              {currentUser.role === 'auditor' ? 'Audit Review Queue' : currentUser.role === 'admin' ? 'Admin Task Queue' : 'My Task Queue'}
+              {currentUser.role === 'auditor' ? 'Audit Review Queue' : currentUser.role === 'admin' ? 'Admin Task Queue' : currentUser.role === 'field_officer' ? 'My Intake Queue' : 'My Task Queue'}
             </h2>
             <button onClick={() => onNavigate('tasks')} className="text-xs text-green-600 flex items-center gap-1 hover:underline">
               View all <ArrowRight size={12} />
@@ -494,7 +517,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                       )}
                     </div>
                     <div className="text-xs text-slate-500 truncate">
-                      {app.memberName}{currentUser.role !== 'admin' && ` · ${fmt(app.loanAmount || app.requestedAmount || 0)}`}
+                      {app.memberName}{currentUser.role !== 'admin' && ` · ${fmt(app.loanAmount || app.requestedAmount || app.amount || 0)}`}
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-1">
@@ -502,10 +525,18 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                       <span className="text-xs font-semibold text-amber-600">audit review pending</span>
                     ) : currentUser.role === 'admin' ? (
                       <span className="text-xs font-semibold text-amber-600">system review pending</span>
+                    ) : currentUser.role === 'field_officer' ? (
+                      <>
+                        <span className="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-medium border border-slate-200">{app.statusBadge}</span>
+                        <span className={`text-xs font-semibold ${app.isTatDue ? 'text-red-600 flex items-center gap-0.5' : 'text-slate-500'}`}>
+                          {app.isTatDue && <Clock size={10} />}
+                          {app.rightStatus}
+                        </span>
+                      </>
                     ) : (
                       <StatusBadge label={app.status} size="sm" />
                     )}
-                    {(app.tatDaysRemaining ?? 99) <= 1 && (
+                    {currentUser.role !== 'field_officer' && (app.tatDaysRemaining ?? 99) <= 1 && (
                       <span className="text-xs text-red-600 flex items-center gap-0.5">
                         <Clock size={10} /> TAT due
                       </span>
@@ -842,6 +873,41 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                     <StatusBadge label={event.type.replace(' ', '_')} size="sm" />
                     <span className={`text-xs font-semibold ${event.status === 'warning' ? 'text-red-600' : event.status === 'success' ? 'text-green-600' : 'text-amber-600'}`}>
                       {event.status === 'warning' ? 'Review required' : 'Processed'}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : currentUser.role === 'field_officer' ? (
+          <div className="card bg-white">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="section-title">Assigned Borrower Follow-ups</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Intake support</p>
+              </div>
+              <button onClick={() => onNavigate('applications')} className="text-xs text-green-600 flex items-center gap-1 hover:underline">
+                View follow-ups <ArrowRight size={12} />
+              </button>
+            </div>
+            <div className="space-y-2">
+              {[
+                { id: 'fo1', accountNumber: 'LO00000042', memberName: 'Ramesh Patil', subtext: 'Witness PAN / Aadhaar pending', status: 'Document follow-up', rightText: 'Due today', isDue: false },
+                { id: 'fo2', accountNumber: 'LO00000043', memberName: 'Sunita Bhosale', subtext: 'Borrower upload support required', status: 'KYC upload', rightText: 'TAT due', isDue: true },
+              ].map(loan => (
+                <button
+                  key={loan.id}
+                  onClick={() => onNavigate('applications/detail', loan.id)}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors text-left border border-transparent hover:border-slate-200 focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-slate-900 num">{loan.accountNumber}</div>
+                    <div className="text-xs text-slate-500">{loan.memberName} · {loan.subtext}</div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-medium border border-slate-200">{loan.status}</span>
+                    <span className={`text-xs font-semibold ${loan.isDue ? 'text-red-600' : 'text-amber-600'}`}>
+                      {loan.rightText}
                     </span>
                   </div>
                 </button>
