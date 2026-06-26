@@ -3,6 +3,7 @@ import { FolderOpen, ChevronRight, Check, AlertTriangle, CheckCircle2, Lock, Fil
 import StatusBadge from '../../components/ui/StatusBadge';
 import StageStepper, { Step } from '../../components/ui/StageStepper';
 import DocumentChecklist from '../../components/loan/DocumentChecklist';
+import AuditTimeline from '../../components/loan/AuditTimeline';
 import { documents, loanApplications, securities } from '../../data/mockData';
 import { useRole, type Permission } from '../../contexts/RoleContext';
 
@@ -15,6 +16,8 @@ const SECURITY_TYPE_LABELS: Record<string, string> = {
   blank_cheque: 'Blank-Dated Cheque',
   tri_party: 'Tri-Party Agreement',
 };
+
+const maskSensitive = (value: string, visible: boolean) => visible ? value : value.replace(/[A-Z0-9]/g, '•');
 
 interface DocumentationHubProps {
   onOpenApplication: (id: string) => void;
@@ -38,19 +41,25 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
   const [isFinanceSigned, setIsFinanceSigned] = useState(false);
   const [approvalCondition, setApprovalCondition] = useState('');
   const [completedLegalActions, setCompletedLegalActions] = useState<string[]>([]);
-  const [activeSection, setActiveSection] = useState<'checklist' | 'legal' | 'security' | 'approvals' | 'impact'>('checklist');
-  const { can } = useRole();
+  const [activeSection, setActiveSection] = useState<'checklist' | 'legal' | 'security' | 'approvals' | 'audit'>('checklist');
+  const { can, currentUser } = useRole();
 
   const app = docQueue.find(a => a.id === selected);
   const appDocuments = documents.filter(d => d.applicationId === selected);
   const appSecurities = securities.filter(s => s.applicationId === selected);
+  const isAuditor = currentUser.role === 'auditor';
+  const isReadOnly = isAuditor || !can('manage_documentation');
+  const sensitiveVisible = can('manage_documentation') || can('initiate_disbursement') || currentUser.role === 'company_secretary';
+  const recoveryApproved = app?.isException && app?.riskRating === 'high';
+  const signatureMismatch = app?.id === 'app004';
   const legalActions = [
     { screen: 'S32', name: 'Term Sheet', owner: 'Compliance Team', status: 'pending_signature' },
     { screen: 'S33', name: 'Loan Agreement', owner: 'Compliance Team', status: 'pending_notarisation' },
     { screen: 'S28', name: 'Power of Attorney', owner: 'Company Secretary', status: 'pending_stamp' },
     { screen: 'S29', name: 'Tri-Party Agreement', owner: 'Compliance Team', status: 'pending_signature' },
-    { screen: 'S30', name: 'SH-4 Physical Share Security', owner: 'Company Secretary', status: 'held' },
-    { screen: 'S31', name: 'CDSL Pledge', owner: 'Company Secretary', status: 'pledged' },
+    ...(app?.shareMode === 'physical'
+      ? [{ screen: 'S30', name: 'SH-4 Physical Share Security', owner: 'Company Secretary', status: 'held' }]
+      : [{ screen: 'S31', name: 'CDSL Pledge', owner: 'Company Secretary', status: 'pledged' }]),
     { screen: 'S34', name: 'Bank Verification / Signature Mismatch', owner: 'Senior Manager Finance', status: 'verified' },
   ];
   const completedLegalCount = completedLegalActions.length;
@@ -75,7 +84,7 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
     { id: 'legal', label: 'Legal Actions', badge: legalActions.length - completedLegalCount },
     { id: 'security', label: 'Securities', badge: appSecurities.length },
     { id: 'approvals', label: 'Approvals', badge: approvalsComplete ? 0 : 4 - approvalProgressCount },
-    { id: 'impact', label: 'Impact', badge: completedLegalCount > 0 || isCreditManagerApproved || isDocComplete ? undefined : 0 },
+    { id: 'audit', label: 'Audit', badge: completedLegalCount > 0 || isCreditManagerApproved || isDocComplete ? undefined : 0 },
   ] as const;
   const activeSectionIndex = sectionTabs.findIndex(tab => tab.id === activeSection);
   const activeSectionLabel = sectionTabs[activeSectionIndex]?.label || 'Checklist';
@@ -88,7 +97,7 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
     legal: 1,
     security: 2,
     approvals: 3,
-    impact: 4,
+    audit: 4,
   };
   const activeStepIndex = activeStepIndexBySection[activeSection];
   const stepState = (index: number, complete = false): Step['state'] => {
@@ -120,28 +129,38 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
 
     const fieldMap: Record<string, { label: string; value: string; status: string }[]> = {
       S28: [
-        { label: 'Stamp paper number', value: 'E-STAMP-2026-0042', status: status('pending_stamp') },
-        { label: 'Notary details', value: 'Notary name, registration, date', status: status('pending_notarisation') },
         { label: 'Borrower signature', value: 'Required', status: status('pending_signature') },
         { label: 'Nominee signature', value: 'Required', status: status('pending_signature') },
+        { label: 'Stamp paper number', value: 'E-STAMP-2026-0042', status: status('pending_stamp') },
+        { label: 'Stamp value', value: '₹500', status: status('pending_stamp') },
+        { label: 'Notary details', value: 'Notary name, registration, date', status: status('pending_notarisation') },
         { label: 'CS verification', value: 'Company Secretary', status: status('pending_cs_review') },
+        { label: 'Custody location', value: 'CS cabinet A / file ref masked', status: status('pending_cs_review') },
       ],
       S29: [
-        { label: 'Subsidiary company', value: 'Configured subsidiary', status: status('drafted') },
-        { label: 'Borrower / nominee signature', value: 'Required', status: status('pending_signature') },
+        { label: 'Subsidiary company', value: 'Sahyadri Farms Post Harvest Care Ltd.', status: status('drafted') },
+        { label: 'Deduction scope', value: 'Principal, interest and dues', status: status('drafted') },
+        { label: 'Borrower signature', value: 'Required', status: status('pending_signature') },
+        { label: 'Nominee signature', value: 'Required if template applies', status: status('pending_signature') },
         { label: 'Subsidiary signatory', value: 'Authorised signer', status: status('pending_signature') },
         { label: 'SFPCL signatory', value: 'Authorised signer', status: status('pending_signature') },
       ],
       S30: [
         { label: 'SH-4 reference', value: app?.shareMode === 'physical' ? 'SH4-2026-0042' : 'Not applicable for demat', status: app?.shareMode === 'physical' ? status('pending') : 'not_required' },
+        { label: 'Folio / certificates', value: app?.shareMode === 'physical' ? `${maskSensitive('FO-0334', sensitiveVisible)} / ${maskSensitive('SC-7781, SC-7782', sensitiveVisible)}` : 'Not applicable', status: app?.shareMode === 'physical' ? status('pending') : 'not_required' },
         { label: 'Borrower signature', value: 'Shareholder', status: app?.shareMode === 'physical' ? status('pending_signature') : 'not_required' },
         { label: 'Witness signature', value: 'Existing shareholder', status: app?.shareMode === 'physical' ? status('pending_signature') : 'not_required' },
-        { label: 'Physical custody', value: 'Company Secretary', status: app?.shareMode === 'physical' ? status('held') : 'not_required' },
+        { label: 'Witness shareholder validation', value: 'SFPCL shareholder register', status: app?.shareMode === 'physical' ? status('pending_cs_review') : 'not_required' },
+        { label: 'Physical custody', value: 'CS cabinet A / file ref', status: app?.shareMode === 'physical' ? status('held') : 'not_required' },
+        { label: 'Return / invocation status', value: 'Held; invocation locked', status: app?.shareMode === 'physical' ? 'held' : 'not_required' },
       ],
       S31: [
+        { label: 'BO accounts', value: app?.shareMode === 'demat' ? `${maskSensitive('120816000042', sensitiveVisible)} / ${maskSensitive('120816000001', sensitiveVisible)}` : 'Not applicable', status: app?.shareMode === 'demat' ? status('pending') : 'not_required' },
         { label: 'PRF upload', value: 'Pledge request form', status: app?.shareMode === 'demat' ? status('pending_upload') : 'not_required' },
-        { label: 'PSN number', value: 'CDSL pledge sequence', status: app?.shareMode === 'demat' ? status('pending') : 'not_required' },
-        { label: 'DP acceptance evidence', value: 'Depository participant confirmation', status: app?.shareMode === 'demat' ? status('pending_upload') : 'not_required' },
+        { label: 'PSN number', value: app?.shareMode === 'demat' ? maskSensitive('CDSL-2026-00234', sensitiveVisible) : 'Not applicable', status: app?.shareMode === 'demat' ? status('pending') : 'not_required' },
+        { label: 'Pledge acceptance', value: 'Depository participant confirmation', status: app?.shareMode === 'demat' ? status('pending_upload') : 'not_required' },
+        { label: 'Future-share pledge flag', value: 'Yes', status: app?.shareMode === 'demat' ? status('pending') : 'not_required' },
+        { label: 'Invocation / unpledge', value: 'Locked until recovery / closure', status: app?.shareMode === 'demat' ? 'pending' : 'not_required' },
       ],
       S32: [
         { label: 'Signature route', value: highValueRoute ? 'CFO + two Directors' : 'CFO', status: status('pending_signature') },
@@ -149,15 +168,19 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
         { label: 'Nominee signature', value: 'Required', status: status('pending_signature') },
       ],
       S33: [
+        { label: 'Stamp value', value: '₹500', status: status('pending_stamp') },
         { label: 'Stamp paper number', value: 'E-STAMP-2026-0043', status: status('pending_stamp') },
         { label: 'Notary details', value: 'Notary name, registration, date', status: status('pending_notarisation') },
         { label: 'Borrower signature', value: 'Required', status: status('pending_signature') },
         { label: 'Witness signature', value: 'Required', status: status('pending_signature') },
       ],
       S34: [
-        { label: 'Signature mismatch flag', value: 'Manual review field', status: status('pending') },
-        { label: 'Bank verification letter', value: 'Bank signed / stamped', status: status('pending_upload') },
-        { label: 'Borrower declaration', value: 'Non-judicial stamp alternative', status: status('pending_upload') },
+        { label: 'Mismatch source', value: 'PAN vs cheque signature', status: status('pending') },
+        { label: 'Masked account', value: `Acct ${maskSensitive('1234', sensitiveVisible)}`, status: status('pending') },
+        { label: 'Resolution option', value: 'Bank letter or borrower declaration', status: status('pending') },
+        { label: 'Bank letter status', value: 'Bank signed / stamped', status: status('pending_upload') },
+        { label: 'Declaration status', value: 'Non-judicial stamp alternative', status: status('pending_upload') },
+        { label: 'Verifier', value: 'Credit / Compliance', status: status('pending_cs_review') },
       ],
     };
 
@@ -168,14 +191,22 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
     const actionMap: Record<string, string[]> = {
       S28: ['Generate PoA', 'Upload Signed Copy', 'Mark Stamped', 'Mark Notarised', 'Send for Correction'],
       S29: ['Generate Agreement', 'Upload Signed Agreement', 'Mark Active', 'Link Reconciliation'],
-      S30: ['Generate SH-4 Checklist', 'Upload Scanned SH-4', 'Mark Original Received', 'Assign Custody', 'Return on Closure', 'Invoke After Recovery Approval'],
-      S31: ['Create Pledge Task', 'Upload PRF', 'Enter PSN', 'Mark Accepted', 'Mark Rejected', 'Start Invocation Request', 'Start Unpledge Request'],
+      S30: ['Generate SH-4 Checklist', 'Upload Scanned SH-4', 'Mark Original Received', 'Assign Custody', 'Return on Closure', 'Invocation Locked'],
+      S31: ['Create Pledge Task', 'Upload PRF', 'Enter PSN', 'Mark Accepted', 'Mark Rejected', 'Invocation Locked', 'Start Unpledge Request'],
       S32: ['Generate Term Sheet', 'Preview', 'Send for Signature', 'Upload Signed Copy', 'Route to CFO / Directors', 'Mark Complete'],
       S33: ['Generate Agreement', 'Upload Signed Copy', 'Mark Stamped', 'Mark Notarised', 'Link Witness', 'Send to Checklist'],
       S34: ['Generate Bank Letter', 'Upload Bank Letter', 'Upload Declaration', 'Mark Resolved', 'Mark Unresolved and Block'],
     };
 
     return actionMap[screen] || [];
+  };
+
+  const actionDisabled = (label: string, screen?: string) => {
+    if (isReadOnly) return true;
+    if (label.includes('Invocation')) return !recoveryApproved;
+    if (label === 'Mark Accepted' && screen === 'S31') return !completedLegalActions.includes('S31');
+    if (label === 'Mark Resolved' && screen === 'S34') return !completedLegalActions.includes('S34');
+    return false;
   };
 
   const requiredSecurityEvidence = [
@@ -216,7 +247,7 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
       meaning: 'Document set, stamping, notarisation and security custody verified.',
       status: isCSApproved,
       permission: 'manage_documentation',
-      action: 'Approve as CS',
+      action: 'Submit to Credit Manager',
       onApprove: () => setIsCSApproved(true),
     },
     {
@@ -224,7 +255,7 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
       meaning: 'Loan limit, checklist and credit conditions confirmed.',
       status: isCreditManagerApproved,
       permission: 'approve_credit_checklist',
-      action: 'Approve as Credit Manager',
+      action: 'Submit to Sanction Committee',
       onApprove: () => setIsCreditManagerApproved(true),
     },
     {
@@ -232,7 +263,7 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
       meaning: 'Final sanction terms and documentation conditions acknowledged.',
       status: isSanctionFinalApproved,
       permission: 'approve_sanction',
-      action: 'Approve as Sanction Committee',
+      action: 'Submit to Finance',
       onApprove: () => setIsSanctionFinalApproved(true),
     },
     {
@@ -240,7 +271,7 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
       meaning: 'Finance sign-off after documentation gate and disbursement readiness review.',
       status: isFinanceSigned,
       permission: 'initiate_disbursement',
-      action: 'Sign as Finance',
+      action: 'Finance handoff received',
       onApprove: () => setIsFinanceSigned(true),
     },
   ];
@@ -254,12 +285,12 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
     {
       label: 'Security Register',
       status: legalActionsComplete ? 'updated' : 'in_progress',
-      note: 'PoA, SH-4, CDSL, cheque and tri-party states are reflected for prototype review.',
+      note: 'PoA, SH-4/CDSL, cheque and tri-party states are tracked.',
     },
     {
       label: 'Audit Trail',
       status: completedLegalCount > 0 ? 'events_staged' : 'not_started',
-      note: completedLegalCount > 0 ? 'Local audit preview records document action changes.' : 'No local action has been staged yet.',
+      note: completedLegalCount > 0 ? 'Document action changes are visible.' : 'No document action captured yet.',
     },
   ];
   const readinessChecks = [
@@ -337,9 +368,18 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
                       <p className="text-xs text-slate-400 mt-0.5">SAP Code: <span className="num font-medium">{app.sapCustomerCode}</span></p>
                     )}
                   </div>
-                  <button onClick={() => onOpenApplication(app.id)} className="text-xs text-green-600 hover:underline flex items-center gap-1 self-start">
-                    Full view <ChevronRight size={12} />
-                  </button>
+                  <div className="flex flex-wrap gap-2 self-start">
+                    <button
+                      className="btn-secondary text-xs disabled:opacity-50"
+                      disabled={isReadOnly}
+                      title={isReadOnly ? 'Read-only role' : 'Generate document pack'}
+                    >
+                      Generate Document Pack
+                    </button>
+                    <button onClick={() => onOpenApplication(app.id)} className="text-xs text-green-600 hover:underline flex items-center gap-1 self-center">
+                      Full view <ChevronRight size={12} />
+                    </button>
+                  </div>
                 </div>
                 <div className="mt-4">
                   <StageStepper steps={documentationSteps} />
@@ -371,7 +411,15 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
                           <p className="text-xs text-slate-500 mt-0.5">Review uploads, verification state, and disbursement blockers.</p>
                         </div>
                       </div>
-                      <DocumentChecklist applicationId={app.id} />
+                      <DocumentChecklist
+                        applicationId={app.id}
+                        shareMode={app.shareMode}
+                        subsidiaryRepayment={Boolean(app.sapCustomerCode)}
+                        signatureMismatch
+                        readOnly={isAuditor}
+                        canVerify={can('manage_documentation') || can('approve_credit_checklist')}
+                        sensitiveVisible={sensitiveVisible}
+                      />
                     </div>
                   )}
 
@@ -420,7 +468,12 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
                             </div>
                             <div className="mt-3 flex flex-wrap gap-2">
                               {legalActionButtons(action.screen).map(actionLabel => (
-                                <button key={actionLabel} className="btn-secondary text-xs">
+                                <button
+                                  key={actionLabel}
+                                  className="btn-secondary text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                                  disabled={actionDisabled(actionLabel, action.screen)}
+                                  title={actionDisabled(actionLabel, action.screen) ? (isReadOnly ? 'Read-only role' : 'Approved recovery action required') : actionLabel}
+                                >
                                   {actionLabel}
                                 </button>
                               ))}
@@ -428,9 +481,11 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
                             <div className="mt-3 flex justify-end">
                               <button
                                 onClick={() => toggleLegalAction(action.screen)}
-                                className="btn-secondary text-xs"
+                                disabled={isReadOnly}
+                                className="btn-secondary text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                                title={isReadOnly ? 'Read-only role' : 'Local prototype verification'}
                               >
-                                {completedLegalActions.includes(action.screen) ? 'Reopen' : 'Mark Complete'}
+                                {completedLegalActions.includes(action.screen) ? 'Reopen' : 'Mark Verified'}
                               </button>
                             </div>
                           </div>
@@ -469,7 +524,7 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
                                 <div className="text-xs text-slate-500 mt-0.5">
                                   Custodian: {sec.custodian || 'Unassigned'}
                                   {sec.executionDate && ` · Executed: ${sec.executionDate}`}
-                                  {sec.psnNumber && ` · PSN: ${sec.psnNumber}`}
+                                  {sec.psnNumber && ` · PSN: ${maskSensitive(sec.psnNumber, sensitiveVisible)}`}
                                 </div>
                                 <div className="flex gap-3 mt-1 text-xs">
                                   {sec.stampDutyStatus !== undefined && sec.stampDutyStatus !== 'not_required' && (
@@ -484,7 +539,36 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
                                   )}
                                 </div>
                               </div>
-                              <StatusBadge label={sec.status} size="sm" />
+                              <div className="flex flex-col items-end gap-2">
+                                <StatusBadge label={sec.status} size="sm" />
+                                <div className="flex flex-wrap justify-end gap-1">
+                                  {sec.securityType === 'sh4' && (
+                                    <button
+                                      className="btn-secondary text-xs disabled:opacity-50"
+                                      disabled={isReadOnly}
+                                      title={isReadOnly ? 'Read-only role' : 'Return after closure'}
+                                    >
+                                      Return
+                                    </button>
+                                  )}
+                                  {sec.securityType === 'cdsl_pledge' && (
+                                    <button
+                                      className="btn-secondary text-xs disabled:opacity-50"
+                                      disabled={isReadOnly || sec.status !== 'pledged'}
+                                      title={sec.status !== 'pledged' ? 'Pledge must be accepted first' : 'Unpledge after closure'}
+                                    >
+                                      Unpledge
+                                    </button>
+                                  )}
+                                  <button
+                                    className="btn-secondary text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={!recoveryApproved || isReadOnly}
+                                    title={recoveryApproved ? 'Recovery approval recorded' : 'Approved recovery action required'}
+                                  >
+                                    Invoke
+                                  </button>
+                                </div>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -566,9 +650,9 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
                                 {legalActionsComplete ? `${approvalProgressCount}/4 approvals complete.` : `${completedLegalCount}/${legalActions.length} legal actions complete.`}
                               </div>
                               <div className="flex flex-wrap gap-2">
-                                <button className="btn-secondary text-xs">Return for Correction</button>
-                                <button className="btn-secondary text-xs" disabled={!approvalCondition}>Add Condition</button>
-                                <button className="btn-secondary text-xs" disabled={!legalActionsComplete}>Submit to Next Approver</button>
+                                <button className="btn-secondary text-xs disabled:opacity-50" disabled={isAuditor}>Return for Correction</button>
+                                <button className="btn-secondary text-xs disabled:opacity-50" disabled={!approvalCondition || isAuditor}>Add Condition</button>
+                                <button className="btn-secondary text-xs disabled:opacity-50" disabled={!legalActionsComplete || isAuditor}>Submit to Next Approver</button>
                                 {can('manage_documentation') ? (
                                   <button
                                     className="btn-primary disabled:opacity-50"
@@ -591,9 +675,8 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
                     </div>
                   )}
 
-                  {activeSection === 'impact' && (
-                    <div>
-                      <h3 className="text-sm font-semibold text-slate-900 mb-3">Prototype Workflow Impact</h3>
+                  {activeSection === 'audit' && (
+                    <div className="space-y-4">
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         {impactItems.map(item => (
                           <div key={item.label} className="rounded-lg border border-slate-100 bg-slate-50 p-3">
@@ -605,21 +688,20 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
                           </div>
                         ))}
                       </div>
-                      <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                           <div>
-                            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Deficiency / Correction Actions</div>
-                            <p className="text-xs text-slate-500 mt-1">
-                              Use these local actions to represent documentation deficiency, borrower correction and CS submission paths.
-                            </p>
+                            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Correction Actions</div>
+                            <p className="text-xs text-slate-500 mt-1">Deficiency, borrower correction, and CS submission are audit-visible actions.</p>
                           </div>
                           <div className="flex flex-wrap gap-2">
-                            <button className="btn-secondary text-xs">Raise Documentation Deficiency</button>
-                            <button className="btn-secondary text-xs">Request Borrower Correction</button>
-                            <button className="btn-secondary text-xs">Submit to Company Secretary</button>
+                            <button className="btn-secondary text-xs disabled:opacity-50" disabled={isReadOnly}>Reject / Request Correction</button>
+                            <button className="btn-secondary text-xs disabled:opacity-50" disabled={isReadOnly}>Request Missing Signature</button>
+                            <button className="btn-secondary text-xs disabled:opacity-50" disabled={isReadOnly}>Submit to Company Secretary</button>
                           </div>
                         </div>
                       </div>
+                      <AuditTimeline entityId={app.id} limit={6} />
                     </div>
                   )}
                 </div>

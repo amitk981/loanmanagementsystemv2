@@ -1,215 +1,342 @@
-import React, { useState } from 'react';
-import { CheckCircle2, XCircle, Clock, Upload, Eye, AlertTriangle, Stamp, FileSignature } from 'lucide-react';
-import type { DocumentRecord } from '../../types';
+import React from 'react';
+import { AlertTriangle, Eye, Upload } from 'lucide-react';
+import StatusBadge from '../ui/StatusBadge';
+import type { DocumentRecord, ShareMode } from '../../types';
 import { documents } from '../../data/mockData';
 
-const docLabels: Record<string, string> = {
-  pan: 'PAN Card',
-  aadhaar: 'Aadhaar Card',
-  nominee_pan: 'Nominee PAN Card',
-  nominee_aadhaar: 'Nominee Aadhaar / OVD',
-  witness_pan: 'Witness PAN Card',
-  witness_aadhaar: 'Witness Aadhaar / OVD',
-  share_certificate: 'Share Certificates',
-  land_712: 'Land Records / 7/12 Extract',
-  crop_plan: 'Crop Plan',
-  bank_statement: '6-Month Bank Statement',
-  poa: 'Power of Attorney (₹500 stamp, notarised)',
-  tri_party: 'Tri-party Agreement / Declaration',
-  sh4: 'SH-4 Share Transfer Form',
-  term_sheet: 'Term Sheet',
-  loan_agreement: 'Loan Agreement (₹500 stamp, notarised)',
-  cancelled_cheque: 'Cancelled Cheque',
-  blank_cheque: 'Blank-Dated Cheque',
-  bank_verification_letter: 'Bank Verification Letter',
-  checklist: 'Final Checklist',
-  appraisal_note: 'Loan Appraisal Note',
-};
+type Requirement = 'mandatory' | 'conditional' | 'not_required';
+type CompactState = 'not_required' | 'pending' | 'uploaded' | 'signed' | 'complete' | 'verified' | 'blocked';
 
-const groupDocs = (docs: DocumentRecord[]) => ({
-  'KYC & Identity': docs.filter(d => ['pan', 'aadhaar', 'nominee_pan', 'nominee_aadhaar', 'witness_pan', 'witness_aadhaar', 'share_certificate'].includes(d.documentType)),
-  'Agriculture Evidence': docs.filter(d => ['land_712', 'crop_plan', 'bank_statement'].includes(d.documentType)),
-  'Legal Documents': docs.filter(d => ['poa', 'tri_party', 'term_sheet', 'loan_agreement', 'sh4'].includes(d.documentType)),
-  'Bank & Security': docs.filter(d => ['cancelled_cheque', 'blank_cheque', 'bank_verification_letter'].includes(d.documentType)),
-});
-
-const checklistMeta: Record<string, { owner: string; condition: string; beforeDisbursement: string; deficiency: string }> = {
-  pan: { owner: 'Credit / Compliance', condition: 'All individual borrowers', beforeDisbursement: 'Verified', deficiency: 'Missing borrower identity blocks disbursement readiness.' },
-  aadhaar: { owner: 'Credit / Compliance', condition: 'All individual borrowers', beforeDisbursement: 'Verified', deficiency: 'Masked Aadhaar / OVD copy must be verified.' },
-  nominee_pan: { owner: 'Credit / Compliance', condition: 'All applications with nominee', beforeDisbursement: 'Verified', deficiency: 'Nominee PAN must be attached or exception approved.' },
-  nominee_aadhaar: { owner: 'Credit / Compliance', condition: 'All applications with nominee', beforeDisbursement: 'Verified', deficiency: 'Nominee Aadhaar / OVD must be attached or exception approved.' },
-  witness_pan: { owner: 'Compliance', condition: 'Documentation stage', beforeDisbursement: 'Verified', deficiency: 'Witness identity and shareholder status must be verified.' },
-  witness_aadhaar: { owner: 'Compliance', condition: 'Documentation stage', beforeDisbursement: 'Verified', deficiency: 'Witness Aadhaar / OVD verification is pending.' },
-  cancelled_cheque: { owner: 'Compliance / Finance', condition: 'All disbursements', beforeDisbursement: 'Verified', deficiency: 'Bank transfer cannot proceed until cheque is verified.' },
-  blank_cheque: { owner: 'Compliance / CS', condition: 'Security', beforeDisbursement: 'Received and logged', deficiency: 'Original custody must be logged in Security Register.' },
-  poa: { owner: 'Compliance / CS', condition: 'All loan documentation per SOP', beforeDisbursement: 'Signed, stamped, notarised', deficiency: 'PoA must be executed before final documentation approval.' },
-  tri_party: { owner: 'Compliance / CS', condition: 'Repayment through subsidiary', beforeDisbursement: 'Signed', deficiency: 'Agreement is conditional on subsidiary deduction route.' },
-  sh4: { owner: 'Compliance / CS', condition: 'Physical shares', beforeDisbursement: 'Signed and held in custody', deficiency: 'Borrower and shareholder witness signatures are required.' },
-  term_sheet: { owner: 'Compliance', condition: 'All loans', beforeDisbursement: 'Signed by required parties', deficiency: 'Borrower, nominee and authority signatures must be complete.' },
-  loan_agreement: { owner: 'Compliance / CS', condition: 'All loans', beforeDisbursement: 'Stamped, notarised and signed', deficiency: 'Loan agreement execution is mandatory.' },
-  bank_verification_letter: { owner: 'Credit / Compliance', condition: 'Signature mismatch', beforeDisbursement: 'Bank signed / declaration verified', deficiency: 'Open mismatch blocks final approval and disbursement.' },
-};
-
-const statusConfig = {
-  not_started:     { icon: <Clock size={14} className="text-slate-400" />, text: 'Not Started', cls: 'text-slate-500' },
-  pending_upload:  { icon: <Upload size={14} className="text-amber-500" />, text: 'Pending Upload', cls: 'text-amber-700' },
-  uploaded:        { icon: <Eye size={14} className="text-blue-500" />, text: 'Uploaded', cls: 'text-blue-700' },
-  under_review:    { icon: <Clock size={14} className="text-amber-500" />, text: 'Under Review', cls: 'text-amber-700' },
-  verified:        { icon: <CheckCircle2 size={14} className="text-green-600" />, text: 'Verified', cls: 'text-green-700' },
-  rejected:        { icon: <XCircle size={14} className="text-red-600" />, text: 'Rejected', cls: 'text-red-700' },
-  signed:          { icon: <FileSignature size={14} className="text-blue-600" />, text: 'Signed', cls: 'text-blue-700' },
-  stamped:         { icon: <Stamp size={14} className="text-amber-600" />, text: 'Stamped', cls: 'text-amber-700' },
-  notarised:       { icon: <CheckCircle2 size={14} className="text-green-600" />, text: 'Notarised', cls: 'text-green-700' },
-  complete:        { icon: <CheckCircle2 size={14} className="text-green-600" />, text: 'Complete', cls: 'text-green-700' },
-  returned:        { icon: <CheckCircle2 size={14} className="text-teal-600" />, text: 'Returned', cls: 'text-teal-700' },
-};
+interface ChecklistRow {
+  id: string;
+  name: string;
+  required: Requirement;
+  owner: string;
+  status: CompactState;
+  signatureStatus: CompactState;
+  stampStatus: CompactState;
+  notaryStatus: CompactState;
+  verificationStatus: CompactState;
+  evidence: string;
+  deficiency: string;
+  nextAction: string;
+  prerequisitesComplete: boolean;
+}
 
 interface DocumentChecklistProps {
   applicationId: string;
+  shareMode: ShareMode;
+  subsidiaryRepayment?: boolean;
+  signatureMismatch?: boolean;
+  readOnly?: boolean;
+  canVerify?: boolean;
+  sensitiveVisible?: boolean;
 }
 
-const DocumentChecklist: React.FC<DocumentChecklistProps> = ({ applicationId }) => {
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
-    'KYC & Identity': true,
-    'Agriculture Evidence': true,
-    'Legal Documents': true,
-    'Bank & Security': true,
-  });
+const docByType = (docs: DocumentRecord[], type: string) => docs.find(d => d.documentType === type);
 
+const compactStatus = (doc?: DocumentRecord): CompactState => {
+  if (!doc) return 'pending';
+  if (doc.status === 'rejected') return 'blocked';
+  if (['verified', 'complete', 'notarised'].includes(doc.status)) return 'verified';
+  if (doc.status === 'signed') return 'signed';
+  if (['uploaded', 'under_review'].includes(doc.status)) return 'uploaded';
+  return 'pending';
+};
+
+const mask = (value: string, visible?: boolean) => visible ? value : value.replace(/[A-Z0-9]/g, '•');
+
+const DocumentChecklist: React.FC<DocumentChecklistProps> = ({
+  applicationId,
+  shareMode,
+  subsidiaryRepayment = true,
+  signatureMismatch = true,
+  readOnly = false,
+  canVerify = false,
+  sensitiveVisible = false,
+}) => {
   const docs = documents.filter(d => d.applicationId === applicationId);
-  const groups = groupDocs(docs);
+  const pan = docByType(docs, 'pan');
+  const aadhaar = docByType(docs, 'aadhaar');
+  const nomineePan = docByType(docs, 'nominee_pan');
+  const nomineeAadhaar = docByType(docs, 'nominee_aadhaar');
+  const witnessPan = docByType(docs, 'witness_pan');
+  const witnessAadhaar = docByType(docs, 'witness_aadhaar');
+  const poa = docByType(docs, 'poa');
+  const triParty = docByType(docs, 'tri_party');
+  const sh4 = docByType(docs, 'sh4');
+  const termSheet = docByType(docs, 'term_sheet');
+  const loanAgreement = docByType(docs, 'loan_agreement');
+  const cancelledCheque = docByType(docs, 'cancelled_cheque');
+  const blankCheque = docByType(docs, 'blank_cheque');
+  const bankVerification = docByType(docs, 'bank_verification_letter');
 
-  const complete = docs.filter(d => ['verified', 'notarised', 'complete', 'signed'].includes(d.status)).length;
-  const blocked = docs.filter(d => d.status === 'rejected').length;
-  const pending = docs.filter(d => ['pending_upload', 'not_started', 'uploaded', 'signed'].includes(d.status)).length;
+  const rows: ChecklistRow[] = [
+    {
+      id: 'borrower-kyc',
+      name: 'Borrower PAN / Aadhaar',
+      required: 'mandatory',
+      owner: 'Credit / Compliance',
+      status: pan?.status === 'verified' && aadhaar?.status === 'verified' ? 'verified' : 'pending',
+      signatureStatus: 'not_required',
+      stampStatus: 'not_required',
+      notaryStatus: 'not_required',
+      verificationStatus: pan?.status === 'verified' && aadhaar?.status === 'verified' ? 'verified' : 'pending',
+      evidence: `${mask('ABCDE1234F', sensitiveVisible)} / Aadhaar ${mask('4521', sensitiveVisible)}`,
+      deficiency: pan && aadhaar ? '-' : 'Borrower KYC pending',
+      nextAction: pan && aadhaar ? 'View' : 'Upload',
+      prerequisitesComplete: pan?.status === 'verified' && aadhaar?.status === 'verified',
+    },
+    {
+      id: 'nominee-kyc',
+      name: 'Nominee PAN / Aadhaar',
+      required: 'mandatory',
+      owner: 'Credit / Compliance',
+      status: nomineePan?.status === 'verified' && nomineeAadhaar?.status === 'verified' ? 'verified' : 'pending',
+      signatureStatus: 'not_required',
+      stampStatus: 'not_required',
+      notaryStatus: 'not_required',
+      verificationStatus: nomineePan?.status === 'verified' && nomineeAadhaar?.status === 'verified' ? 'verified' : 'pending',
+      evidence: `${mask('FGHIJ5678K', sensitiveVisible)} / Aadhaar ${mask('7789', sensitiveVisible)}`,
+      deficiency: nomineePan && nomineeAadhaar ? '-' : 'Nominee KYC pending',
+      nextAction: nomineePan && nomineeAadhaar ? 'View' : 'Upload',
+      prerequisitesComplete: nomineePan?.status === 'verified' && nomineeAadhaar?.status === 'verified',
+    },
+    {
+      id: 'witness-kyc',
+      name: 'Witness PAN / Aadhaar',
+      required: 'mandatory',
+      owner: 'Compliance',
+      status: witnessPan?.status === 'verified' && witnessAadhaar?.status === 'verified' ? 'verified' : 'uploaded',
+      signatureStatus: 'not_required',
+      stampStatus: 'not_required',
+      notaryStatus: 'not_required',
+      verificationStatus: witnessPan?.status === 'verified' && witnessAadhaar?.status === 'verified' ? 'verified' : 'pending',
+      evidence: `${mask('WITNS1234Q', sensitiveVisible)} / shareholder check`,
+      deficiency: 'Witness shareholder validation pending',
+      nextAction: 'Verify',
+      prerequisitesComplete: witnessPan?.status === 'verified' && witnessAadhaar?.status === 'verified',
+    },
+    {
+      id: 'cancelled-cheque',
+      name: 'Cancelled cheque',
+      required: 'mandatory',
+      owner: 'Compliance / Finance',
+      status: compactStatus(cancelledCheque),
+      signatureStatus: 'not_required',
+      stampStatus: 'not_required',
+      notaryStatus: 'not_required',
+      verificationStatus: compactStatus(cancelledCheque),
+      evidence: `Acct ${mask('1234', sensitiveVisible)} / IFSC RATN••••001`,
+      deficiency: compactStatus(cancelledCheque) === 'verified' ? '-' : 'Bank proof pending',
+      nextAction: compactStatus(cancelledCheque) === 'verified' ? 'View' : 'Upload',
+      prerequisitesComplete: compactStatus(cancelledCheque) === 'verified',
+    },
+    {
+      id: 'blank-cheque',
+      name: 'Blank-dated cheque custody',
+      required: 'mandatory',
+      owner: 'Company Secretary',
+      status: compactStatus(blankCheque),
+      signatureStatus: 'not_required',
+      stampStatus: 'not_required',
+      notaryStatus: 'not_required',
+      verificationStatus: compactStatus(blankCheque),
+      evidence: `Custody ref ${mask('BCHQ-0042', sensitiveVisible)}`,
+      deficiency: compactStatus(blankCheque) === 'verified' ? '-' : 'Custody not logged',
+      nextAction: compactStatus(blankCheque) === 'verified' ? 'View' : 'Log custody',
+      prerequisitesComplete: compactStatus(blankCheque) === 'verified',
+    },
+    {
+      id: 'poa',
+      name: 'Power of Attorney',
+      required: 'mandatory',
+      owner: 'Compliance / CS',
+      status: compactStatus(poa),
+      signatureStatus: poa?.status === 'signed' || compactStatus(poa) === 'verified' ? 'signed' : 'pending',
+      stampStatus: poa?.stampStatus === 'complete' ? 'complete' : 'pending',
+      notaryStatus: poa?.notarisationStatus === 'complete' ? 'complete' : 'pending',
+      verificationStatus: compactStatus(poa) === 'verified' ? 'verified' : 'pending',
+      evidence: 'PoA draft / custody CS cabinet A',
+      deficiency: poa?.stampStatus === 'complete' && poa?.notarisationStatus === 'complete' ? '-' : 'Stamp or notary pending',
+      nextAction: 'Mark stamped',
+      prerequisitesComplete: compactStatus(poa) === 'verified' && poa?.stampStatus === 'complete' && poa?.notarisationStatus === 'complete',
+    },
+    {
+      id: 'tri-party',
+      name: 'Tri-party Agreement',
+      required: subsidiaryRepayment ? 'conditional' : 'not_required',
+      owner: 'Compliance / CS',
+      status: subsidiaryRepayment ? compactStatus(triParty) : 'not_required',
+      signatureStatus: subsidiaryRepayment ? (compactStatus(triParty) === 'verified' ? 'signed' : 'pending') : 'not_required',
+      stampStatus: 'not_required',
+      notaryStatus: 'not_required',
+      verificationStatus: subsidiaryRepayment ? compactStatus(triParty) : 'not_required',
+      evidence: subsidiaryRepayment ? 'Subsidiary deduction agreement' : '-',
+      deficiency: subsidiaryRepayment && compactStatus(triParty) !== 'verified' ? 'All party signatures pending' : '-',
+      nextAction: subsidiaryRepayment ? 'Upload signed' : 'None',
+      prerequisitesComplete: !subsidiaryRepayment || compactStatus(triParty) === 'verified',
+    },
+    {
+      id: 'sh4',
+      name: 'SH-4 Physical Share Security',
+      required: shareMode === 'physical' ? 'conditional' : 'not_required',
+      owner: 'Company Secretary',
+      status: shareMode === 'physical' ? compactStatus(sh4) : 'not_required',
+      signatureStatus: shareMode === 'physical' ? (compactStatus(sh4) === 'verified' ? 'signed' : 'pending') : 'not_required',
+      stampStatus: 'not_required',
+      notaryStatus: 'not_required',
+      verificationStatus: shareMode === 'physical' ? compactStatus(sh4) : 'not_required',
+      evidence: shareMode === 'physical' ? `Folio ${mask('FO-0334', sensitiveVisible)} / cert ${mask('SC-7781', sensitiveVisible)}` : '-',
+      deficiency: shareMode === 'physical' && compactStatus(sh4) !== 'verified' ? 'Witness signature or custody pending' : '-',
+      nextAction: shareMode === 'physical' ? 'Assign custody' : 'None',
+      prerequisitesComplete: shareMode !== 'physical' || compactStatus(sh4) === 'verified',
+    },
+    {
+      id: 'cdsl',
+      name: 'CDSL pledge',
+      required: shareMode === 'demat' ? 'conditional' : 'not_required',
+      owner: 'Company Secretary',
+      status: shareMode === 'demat' ? 'pending' : 'not_required',
+      signatureStatus: 'not_required',
+      stampStatus: 'not_required',
+      notaryStatus: 'not_required',
+      verificationStatus: shareMode === 'demat' ? 'pending' : 'not_required',
+      evidence: shareMode === 'demat' ? `BO ${mask('120816000042', sensitiveVisible)} / PSN pending` : '-',
+      deficiency: shareMode === 'demat' ? 'DP acceptance pending' : '-',
+      nextAction: shareMode === 'demat' ? 'Enter PSN' : 'None',
+      prerequisitesComplete: shareMode !== 'demat',
+    },
+    {
+      id: 'term-sheet',
+      name: 'Term Sheet',
+      required: 'mandatory',
+      owner: 'Compliance',
+      status: compactStatus(termSheet),
+      signatureStatus: compactStatus(termSheet) === 'verified' ? 'signed' : 'pending',
+      stampStatus: 'not_required',
+      notaryStatus: 'not_required',
+      verificationStatus: compactStatus(termSheet),
+      evidence: 'Borrower, nominee, CFO/director route',
+      deficiency: compactStatus(termSheet) === 'verified' ? '-' : 'Signature route pending',
+      nextAction: 'Route signatures',
+      prerequisitesComplete: compactStatus(termSheet) === 'verified',
+    },
+    {
+      id: 'loan-agreement',
+      name: 'Loan Agreement',
+      required: 'mandatory',
+      owner: 'Compliance / CS',
+      status: compactStatus(loanAgreement),
+      signatureStatus: compactStatus(loanAgreement) === 'verified' ? 'signed' : 'pending',
+      stampStatus: loanAgreement?.stampStatus === 'complete' ? 'complete' : 'pending',
+      notaryStatus: loanAgreement?.notarisationStatus === 'complete' ? 'complete' : 'pending',
+      verificationStatus: compactStatus(loanAgreement),
+      evidence: `Stamp ${mask('E-STAMP-2026-0043', sensitiveVisible)}`,
+      deficiency: 'Borrower/witness signature, stamp and notary required',
+      nextAction: 'Upload signed',
+      prerequisitesComplete: compactStatus(loanAgreement) === 'verified' && loanAgreement?.stampStatus === 'complete' && loanAgreement?.notarisationStatus === 'complete',
+    },
+    {
+      id: 'bank-verification',
+      name: 'Bank Verification Letter / declaration',
+      required: signatureMismatch ? 'conditional' : 'not_required',
+      owner: 'Credit / Compliance',
+      status: signatureMismatch ? compactStatus(bankVerification) : 'not_required',
+      signatureStatus: signatureMismatch ? 'pending' : 'not_required',
+      stampStatus: signatureMismatch ? 'pending' : 'not_required',
+      notaryStatus: 'not_required',
+      verificationStatus: signatureMismatch ? compactStatus(bankVerification) : 'not_required',
+      evidence: signatureMismatch ? `Mismatch: cheque vs PAN / acct ${mask('1234', sensitiveVisible)}` : '-',
+      deficiency: signatureMismatch && compactStatus(bankVerification) !== 'verified' ? 'Resolution document pending' : '-',
+      nextAction: signatureMismatch ? 'Upload resolution' : 'None',
+      prerequisitesComplete: !signatureMismatch || compactStatus(bankVerification) === 'verified',
+    },
+    {
+      id: 'final-signatures',
+      name: 'Final checklist signatures',
+      required: 'mandatory',
+      owner: 'CS / Credit / Sanction / Finance',
+      status: 'pending',
+      signatureStatus: 'pending',
+      stampStatus: 'not_required',
+      notaryStatus: 'not_required',
+      verificationStatus: 'pending',
+      evidence: 'Approval chain',
+      deficiency: 'Final sign-offs incomplete',
+      nextAction: 'Submit to CS',
+      prerequisitesComplete: false,
+    },
+  ];
+
+  const blockingRows = rows.filter(row => row.required !== 'not_required' && !row.prerequisitesComplete);
+
+  const markVerifiedDisabled = (row: ChecklistRow) =>
+    readOnly || !canVerify || !row.prerequisitesComplete || row.verificationStatus === 'verified';
 
   return (
-    <div className="space-y-4">
-      {/* Summary */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
-          <div className="text-xl font-bold text-green-700 num">{complete}</div>
-          <div className="text-xs text-green-600">Complete</div>
-        </div>
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
-          <div className="text-xl font-bold text-amber-700 num">{pending}</div>
-          <div className="text-xs text-amber-600">Pending</div>
-        </div>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
-          <div className="text-xl font-bold text-red-700 num">{blocked}</div>
-          <div className="text-xs text-red-600">Rejected</div>
-        </div>
-      </div>
-
-      {/* Disbursement gate */}
-      {pending > 0 && (
+    <div className="space-y-3">
+      {blockingRows.length > 0 && (
         <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
           <AlertTriangle size={16} className="text-red-600 flex-shrink-0" />
           <p className="text-sm text-red-800 font-medium">
-            Disbursement is blocked — {pending} document{pending > 1 ? 's' : ''} pending completion.
+            Disbursement blocked: {blockingRows[0].name} pending{blockingRows.length > 1 ? ` +${blockingRows.length - 1}` : ''}.
           </p>
         </div>
       )}
 
-      {/* Document groups */}
-      {Object.entries(groups).map(([groupName, groupDocs]) => (
-        groupDocs.length > 0 && (
-          <div key={groupName} className="border border-slate-200 rounded-lg overflow-hidden">
-            <button
-              onClick={() => setExpandedGroups(prev => ({ ...prev, [groupName]: !prev[groupName] }))}
-              className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors"
-            >
-              <span className="text-sm font-semibold text-slate-700">{groupName}</span>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500">{groupDocs.filter(d => ['verified', 'notarised', 'complete'].includes(d.status)).length}/{groupDocs.length} complete</span>
-                <span className={`transition-transform text-slate-400 ${expandedGroups[groupName] ? 'rotate-180' : ''}`}>▾</span>
-              </div>
-            </button>
-
-            {expandedGroups[groupName] && (
-              <div className="divide-y divide-slate-100">
-                {groupDocs.map(doc => {
-                  const sc = statusConfig[doc.status] || statusConfig.not_started;
-                  const needsStamp = ['poa', 'loan_agreement'].includes(doc.documentType);
-                  return (
-                    <div key={doc.id} className="flex items-center gap-3 px-4 py-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-slate-800">{docLabels[doc.documentType] || doc.documentType}</span>
-                          {doc.requiredFlag === 'mandatory' && (
-                            <span className="text-xs text-red-500 font-medium">Required</span>
-                          )}
-                        </div>
-                        {needsStamp && (
-                          <div className="flex gap-3 mt-1">
-                            <span className={`text-xs flex items-center gap-1 ${doc.stampStatus === 'complete' ? 'text-green-600' : doc.stampStatus === 'pending' ? 'text-amber-600' : 'text-slate-400'}`}>
-                              <Stamp size={10} /> Stamp: {doc.stampStatus === 'complete' ? 'Done' : doc.stampStatus === 'not_required' ? 'N/A' : 'Pending'}
-                            </span>
-                            <span className={`text-xs flex items-center gap-1 ${doc.notarisationStatus === 'complete' ? 'text-green-600' : doc.notarisationStatus === 'pending' ? 'text-amber-600' : 'text-slate-400'}`}>
-                              ✍ Notarised: {doc.notarisationStatus === 'complete' ? 'Yes' : doc.notarisationStatus === 'not_required' ? 'N/A' : 'Pending'}
-                            </span>
-                          </div>
-                        )}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1 mt-2 text-xs text-slate-500">
-                          <span>Owner: {checklistMeta[doc.documentType]?.owner || 'Compliance'}</span>
-                          <span>Required when: {checklistMeta[doc.documentType]?.condition || doc.requiredFlag}</span>
-                          <span>Before disbursement: {checklistMeta[doc.documentType]?.beforeDisbursement || 'Verified'}</span>
-                          <span>
-                            Verified: {doc.verifiedBy && doc.verifiedAt ? `${doc.verifiedBy} on ${new Date(doc.verifiedAt).toLocaleDateString('en-IN')}` : 'Pending'}
-                          </span>
-                          {['pending_upload', 'not_started', 'uploaded', 'under_review', 'rejected'].includes(doc.status) && (
-                            <span className="md:col-span-2 text-amber-700">
-                              Deficiency: {doc.rejectionReason || checklistMeta[doc.documentType]?.deficiency || 'Review and update this checklist item.'}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className={`flex items-center gap-1 text-xs font-medium flex-shrink-0 ${sc.cls}`}>
-                        {sc.icon}
-                        {sc.text}
-                      </div>
-                      <div className="flex gap-1 flex-shrink-0">
-                        {doc.status !== 'not_started' && (
-                          <button className="text-xs px-2 py-1 border border-slate-200 rounded text-slate-600 hover:bg-slate-50">View</button>
-                        )}
-                        {['pending_upload', 'not_started', 'rejected'].includes(doc.status) && (
-                          <button className="text-xs px-2 py-1 bg-green-50 border border-green-200 rounded text-green-700 hover:bg-green-100">Upload</button>
-                        )}
-                        {['uploaded', 'under_review', 'signed'].includes(doc.status) && (
-                          <button className="text-xs px-2 py-1 bg-blue-50 border border-blue-200 rounded text-blue-700 hover:bg-blue-100">Verify</button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )
-      ))}
-
-      {/* Checklist sign-off sequence */}
-      <div className="border border-slate-200 rounded-lg p-4">
-        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Checklist Sign-off Sequence</div>
-        <div className="space-y-2">
-          {[
-            { role: 'Company Secretary', meaning: 'All required documents verified', status: 'pending' },
-            { role: 'Credit Manager', meaning: 'Loan limit confirmed', status: 'pending' },
-            { role: 'Sanction Committee', meaning: 'Final approval given', status: 'pending' },
-            { role: 'Senior Manager – Finance', meaning: 'Loan disbursed (signed after disbursement)', status: 'pending' },
-          ].map((step, idx) => (
-            <div key={idx} className="flex items-center gap-3">
-              <div className="w-5 h-5 rounded-full border-2 border-slate-300 flex-shrink-0 flex items-center justify-center">
-                <span className="text-xs text-slate-400 font-semibold">{idx + 1}</span>
-              </div>
-              <div className="flex-1">
-                <span className="text-sm font-medium text-slate-700">{step.role}</span>
-                <span className="text-xs text-slate-400 ml-2">— {step.meaning}</span>
-              </div>
-              <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full font-medium">Awaiting</span>
-            </div>
-          ))}
-        </div>
+      <div className="overflow-x-auto border border-slate-200 rounded-lg">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50">
+            <tr>
+              <th className="table-header text-left">Document</th>
+              <th className="table-header text-left">Req.</th>
+              <th className="table-header text-left">Owner</th>
+              <th className="table-header text-left">Status</th>
+              <th className="table-header text-left">Sig.</th>
+              <th className="table-header text-left">Stamp</th>
+              <th className="table-header text-left">Notary</th>
+              <th className="table-header text-left">Verified</th>
+              <th className="table-header text-left">Evidence</th>
+              <th className="table-header text-left">Deficiency</th>
+              <th className="table-header text-left">Next</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {rows.map(row => (
+              <tr key={row.id} className="hover:bg-slate-50">
+                <td className="table-cell font-medium text-slate-900 min-w-48">{row.name}</td>
+                <td className="table-cell"><StatusBadge label={row.required} size="sm" /></td>
+                <td className="table-cell text-xs text-slate-600 min-w-32">{row.owner}</td>
+                <td className="table-cell"><StatusBadge label={row.status} size="sm" /></td>
+                <td className="table-cell"><StatusBadge label={row.signatureStatus} size="sm" /></td>
+                <td className="table-cell"><StatusBadge label={row.stampStatus} size="sm" /></td>
+                <td className="table-cell"><StatusBadge label={row.notaryStatus} size="sm" /></td>
+                <td className="table-cell"><StatusBadge label={row.verificationStatus} size="sm" /></td>
+                <td className="table-cell text-xs text-slate-500 min-w-44">{row.evidence}</td>
+                <td className="table-cell text-xs text-slate-500 min-w-44">{row.deficiency}</td>
+                <td className="table-cell">
+                  <div className="flex items-center gap-1">
+                    <button
+                      className="text-xs px-2 py-1 border border-slate-200 rounded text-slate-600 hover:bg-slate-50"
+                      disabled={readOnly}
+                      title={readOnly ? 'Read-only role' : row.nextAction}
+                    >
+                      {row.nextAction === 'View' ? <Eye size={12} /> : row.nextAction.includes('Upload') ? <Upload size={12} /> : row.nextAction}
+                    </button>
+                    <button
+                      className="text-xs px-2 py-1 bg-blue-50 border border-blue-200 rounded text-blue-700 hover:bg-blue-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={markVerifiedDisabled(row)}
+                      title={markVerifiedDisabled(row) ? 'Prerequisites or role approval required' : 'Mark verified'}
+                    >
+                      Verify
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
