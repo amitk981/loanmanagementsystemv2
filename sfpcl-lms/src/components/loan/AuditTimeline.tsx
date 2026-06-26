@@ -37,12 +37,21 @@ const formatTime = (ts: string) => {
 };
 
 const roleLabels: Record<string, string> = {
+  field_officer: 'Field Officer',
   deputy_manager_finance: 'Deputy Manager – Finance',
   credit_manager: 'Credit Manager',
   compliance_team: 'Compliance Team',
   company_secretary: 'Company Secretary',
   sanction_committee: 'Sanction Committee',
   cfo: 'CFO',
+  director: 'Director',
+  senior_manager_finance: 'Senior Manager – Finance',
+  cfc: 'Chief Financial Controller',
+  accounts: 'Accounts',
+  sales_team_user: 'Sales Team User',
+  auditor: 'Auditor',
+  admin: 'Administrator',
+  borrower: 'Borrower / Member',
 };
 
 const AuditTimeline: React.FC<AuditTimelineProps> = ({ entityId, limit = 20 }) => {

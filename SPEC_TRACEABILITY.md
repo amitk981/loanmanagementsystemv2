@@ -4,8 +4,8 @@ This audit verifies the existing React/Vite prototype against the SFPCL LMS sour
 
 | Source of truth | Primary verification artifact | Notes |
 |---|---|---|
-| `docs/screen-spec.md` | `SCREEN_COVERAGE_MATRIX.md` | Internal screens S00-S74 and S76 mapped to routes/components or explicit consolidations; S02 and S04 now have dedicated reachable pages. |
-| `docs/screen-spec-member-portal.md` | `SCREEN_COVERAGE_MATRIX.md` | Member portal MP00-MP25 mapped to borrower portal components and consolidations. |
+| `docs/screen-spec.md` | `SCREEN_COVERAGE_MATRIX.md` | Internal screens S00-S74 and S76 mapped one row per spec heading to routes/components or explicit consolidations; S02 and S04 now have dedicated reachable pages. |
+| `docs/screen-spec-member-portal.md` | `SCREEN_COVERAGE_MATRIX.md` | Member portal MP00-MP25 mapped one row per spec heading to borrower portal components and consolidations. |
 | `docs/user-flows.md` | `FLOW_GATE_AUDIT.md` | Lifecycle order checked from application through closure/archive. |
 | `docs/auth-permissions.md` | `ROLE_ACTION_MATRIX.md`, `FLOW_GATE_AUDIT.md` | Role visibility/actions checked; central page guard added in `App.tsx`; Field Officer and Sales Team are now seeded demo roles. |
 | `docs/design-system.md` | `COMPONENT_REUSE_LOG.md` | Fixes reused current shell, card, button, and alert styles. |

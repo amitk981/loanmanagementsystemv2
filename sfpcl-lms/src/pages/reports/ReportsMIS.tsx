@@ -18,7 +18,7 @@ const ReportsMIS: React.FC = () => {
         <div className="flex flex-col items-center py-20 text-center">
           <BarChart2 size={40} className="text-slate-300 mb-4" />
           <h2 className="text-lg font-semibold text-slate-700 mb-2">Access Restricted</h2>
-          <p className="text-sm text-slate-400">Reports are accessible to CFO, Credit Manager, Accounts, and Auditor roles.</p>
+          <p className="text-sm text-slate-400">Reports are accessible to CFO, Credit Manager, Accounts, Sales Team, and Auditor roles.</p>
         </div>
       </div>
     );

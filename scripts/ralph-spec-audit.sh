@@ -25,7 +25,7 @@ echo "== Source files ==" | tee .codex/spec-audit/02-source-files.txt
 find sfpcl-lms/src -type f | sort | tee -a .codex/spec-audit/02-source-files.txt
 
 echo "== Screen ID references in source ==" | tee .codex/spec-audit/03-screen-id-source-refs.txt
-rg -n "\b(S[0-9]{2,3}|MP[0-9]{2,3})\b|Sanction|Documentation|Disbursement|Repayment|NOC|KYC|Appraisal|Borrower|Member|Compliance|Audit" sfpcl-lms/src \
+rg --sort path -n "\b(S[0-9]{2,3}|MP[0-9]{2,3})\b|Sanction|Documentation|Disbursement|Repayment|NOC|KYC|Appraisal|Borrower|Member|Compliance|Audit" sfpcl-lms/src \
   | tee -a .codex/spec-audit/03-screen-id-source-refs.txt || true
 
 echo "== Existing component/style primitives ==" | tee .codex/spec-audit/04-components-styles.txt
@@ -33,4 +33,6 @@ find sfpcl-lms/src -type f \( -iname '*component*' -o -path '*components*' -o -i
   | tee -a .codex/spec-audit/04-components-styles.txt
 
 echo "== Package checks ==" | tee .codex/spec-audit/05-checks.txt
-(cd sfpcl-lms && npm run build) 2>&1 | tee -a .codex/spec-audit/05-checks.txt
+(cd sfpcl-lms && npm run build) 2>&1 \
+  | sed -E 's/✓ built in [0-9.]+s/✓ built in <duration>/' \
+  | tee -a .codex/spec-audit/05-checks.txt

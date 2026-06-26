@@ -314,6 +314,7 @@ const SettingsHub: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {([
+                    ['Field Officer',            true, false, false, false, false, false],
                     ['Deputy Manager – Finance', true, false, true, false, false, false],
                     ['Credit Manager',           true, true, true, false, true, false],
                     ['Compliance Team',          false, false, true, false, true, false],
@@ -324,6 +325,7 @@ const SettingsHub: React.FC = () => {
                     ['Senior Manager – Finance', false, false, true, true, false, false],
                     ['CFC',                      false, false, false, true, false, false],
                     ['Accounts',                 true, false, false, false, false, false],
+                    ['Sales Team User',          true, false, false, false, false, false],
                     ['Auditor',                  true, true, true, false, true, false],
                     ['Admin',                    true, false, false, false, false, true],
                   ] as [string, ...boolean[]][]).map(row => (
