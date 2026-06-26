@@ -656,6 +656,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
           <DocumentChecklist 
             applicationId={app.id} 
             shareMode={app.shareMode}
+            readOnly={!can('manage_documentation')}
           />
         </div>
 

@@ -3,6 +3,8 @@ import { Search, Users, AlertTriangle, RefreshCw, Eye, BarChart2 } from 'lucide-
 import StatusBadge from '../../components/ui/StatusBadge';
 import { members } from '../../data/mockData';
 
+import { useRole } from '../../contexts/RoleContext';
+
 const fmt = (n: number) => '\u20b9' + n.toLocaleString('en-IN');
 
 interface MemberDirectoryProps {
@@ -11,6 +13,7 @@ interface MemberDirectoryProps {
 }
 
 const MemberDirectory: React.FC<MemberDirectoryProps> = ({ onSelect, onBorrower360 }) => {
+  const { can } = useRole();
   const [search, setSearch] = useState('');
   const [kycFilter, setKycFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -36,7 +39,7 @@ const MemberDirectory: React.FC<MemberDirectoryProps> = ({ onSelect, onBorrower3
         {reKycCount > 0 && (
           <div className="flex items-center gap-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
             <RefreshCw size={14} />
-            {reKycCount} member{reKycCount > 1 ? 's' : ''} require Re-KYC
+            {reKycCount} member{reKycCount > 1 ? 's' : ''} have Re-KYC blockers
           </div>
         )}
       </div>
@@ -141,9 +144,9 @@ const MemberDirectory: React.FC<MemberDirectoryProps> = ({ onSelect, onBorrower3
                     </td>
                     <td className="table-cell">
                       {m.defaultStatus !== 'no_default' ? (
-                        <span className="flex items-center gap-1 text-xs text-red-600">
+                        <span className={`flex items-center gap-1 text-xs ${m.defaultStatus === 'current_default' ? 'text-red-600' : 'text-amber-600'}`}>
                           <AlertTriangle size={12} />
-                          {m.defaultStatus === 'current_default' ? 'Current' : 'Past'}
+                          {m.defaultStatus === 'current_default' ? 'Current default' : 'Past default'}
                         </span>
                       ) : (
                         <span className="text-xs text-green-600">None</span>
@@ -154,14 +157,16 @@ const MemberDirectory: React.FC<MemberDirectoryProps> = ({ onSelect, onBorrower3
                     </td>
                     <td className="table-cell">
                       <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                        <button
-                          onClick={() => onSelect(m.id)}
-                          className="flex items-center gap-1 text-xs text-green-700 hover:text-green-900 px-2 py-1 rounded hover:bg-green-50 transition-colors"
-                          title="Member Profile"
-                        >
-                          <Eye size={12} /> Profile
-                        </button>
-                        {onBorrower360 && (
+                        {can('view_members') && (
+                          <button
+                            onClick={() => onSelect(m.id)}
+                            className="flex items-center gap-1 text-xs text-green-700 hover:text-green-900 px-2 py-1 rounded hover:bg-green-50 transition-colors"
+                            title="Member Profile"
+                          >
+                            <Eye size={12} /> Profile
+                          </button>
+                        )}
+                        {onBorrower360 && can('view_members') && (
                           <button
                             onClick={() => onBorrower360(m.id)}
                             className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 px-2 py-1 rounded hover:bg-blue-50 transition-colors"

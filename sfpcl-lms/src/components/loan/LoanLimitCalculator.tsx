@@ -37,7 +37,7 @@ const LoanLimitCalculator: React.FC<LoanLimitCalculatorProps> = ({
         <AlertTriangle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
         <div className="text-sm">
           <span className="font-semibold text-amber-900">Loan limit policy requires confirmation — </span>
-          <span className="text-amber-800">SOP references both 30% and 10% of share valuation, and ₹200 per share. Formula applied: 30% of NAV (₹2,000 per share). Confirm before automated sanction.</span>
+          <span className="text-amber-800">Policy formula pending confirmation. Current configured formula: 30% of NAV. Flag in appraisal and exception register if used.</span>
         </div>
       </div>
 

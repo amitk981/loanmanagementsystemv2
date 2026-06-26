@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import {
   Inbox, Clock, AlertTriangle, CheckCircle2, ChevronRight,
   Filter, Calendar, User, ArrowRight, Download, MoreVertical,
-  MessageSquare, UserPlus, Ban
+  MessageSquare, UserPlus, Ban, FileText
 } from 'lucide-react';
 import StatusBadge from '../../components/ui/StatusBadge';
-import { useRole } from '../../contexts/RoleContext';
+import { useRole, ROLE_LABELS } from '../../contexts/RoleContext';
 
 type TaskPriority = 'critical' | 'high' | 'normal';
 type TaskType =
@@ -72,15 +72,71 @@ const roleTaskTypes: Record<string, TaskType[]> = {
 };
 
 const allTasks: Task[] = [
-  { id: 'T000', type: 'document_verification',loanNo: 'LO00000047', borrower: 'Anjali Wagh',      amount: 100000, priority: 'high',     tatRemaining: '1 day',         status: 'draft',               assignedRole: 'field_officer',          assignedUser: 'Amit Kallapa', createdDate: '2026-06-18', dueDate: '2026-06-27', borrowerType: 'individual', isSpecialCase: false, isException: false },
-  { id: 'T001', type: 'completeness_check',  loanNo: 'LO00000047', borrower: 'Ramesh Kulkarni',  amount: 250000, priority: 'critical', tatRemaining: '3 hrs',        status: 'submitted',           assignedRole: 'deputy_manager_finance', assignedUser: 'Amit Kallapa', createdDate: '2025-06-24', dueDate: '2025-06-25', borrowerType: 'individual', isSpecialCase: false, isException: false },
-  { id: 'T002', type: 'appraisal',            loanNo: 'LO00000046', borrower: 'Sunita Kamble',    amount: 150000, priority: 'high',     tatRemaining: '1 day',         status: 'reference_generated',  assignedRole: 'deputy_manager_finance', createdDate: '2025-06-23', dueDate: '2025-06-26', borrowerType: 'individual', isSpecialCase: true,  isException: false },
-  { id: 'T003', type: 'sanction',             loanNo: 'LO00000044', borrower: 'Kiran Pawar',      amount: 400000, priority: 'high',     tatRemaining: '2 days',        status: 'pending_sanction',     assignedRole: 'sanction_committee',     createdDate: '2025-06-22', dueDate: '2025-06-27', borrowerType: 'fpc',        isSpecialCase: false, isException: true  },
-  { id: 'T004', type: 'document_verification',loanNo: 'LO00000043', borrower: 'Asha Bhosale',     amount: 200000, priority: 'normal',   tatRemaining: '3 days',        status: 'sanctioned',           assignedRole: 'compliance_team',        createdDate: '2025-06-21', dueDate: '2025-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
-  { id: 'T005', type: 'sap_setup',            loanNo: 'LO00000041', borrower: 'Vijay Patil',      amount: 300000, priority: 'high',     tatRemaining: '1 day',         status: 'pending_sap_code',     assignedRole: 'senior_manager_finance', createdDate: '2025-06-20', dueDate: '2025-06-26', borrowerType: 'individual', isSpecialCase: false, isException: false },
-  { id: 'T006', type: 'disbursement',         loanNo: 'LO00000040', borrower: 'Manoj Thorat',     amount: 500000, priority: 'normal',   tatRemaining: '2 days',        status: 'ready_for_payment',    assignedRole: 'senior_manager_finance', createdDate: '2025-06-19', dueDate: '2025-06-27', borrowerType: 'fpc',        isSpecialCase: true,  isException: false },
-  { id: 'T007', type: 'default_review',       loanNo: 'LO00000038', borrower: 'Malti Shinde',     amount: 180000, priority: 'critical', tatRemaining: 'Overdue',       status: 'default_review',       assignedRole: 'credit_manager',         assignedUser: 'Amit Kallapa', createdDate: '2025-06-15', dueDate: '2025-06-20', borrowerType: 'individual', isSpecialCase: false, isException: false },
-  { id: 'T008', type: 'approval',             loanNo: 'LO00000042', borrower: 'Ganesh Thorat',    amount: 350000, priority: 'high',     tatRemaining: '4 hrs',         status: 'pending_sanction',     assignedRole: 'cfo',                    createdDate: '2025-06-24', dueDate: '2025-06-25', borrowerType: 'individual', isSpecialCase: false, isException: true  },
+  { id: 'T100', type: 'completeness_check', loanNo: 'LO00000100', borrower: 'Ramesh Iyer', amount: 200000, priority: 'normal', tatRemaining: '2 days', status: 'submitted', assignedRole: 'field_officer', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T101', type: 'document_verification', loanNo: 'LO00000101', borrower: 'Ganesh Thorat', amount: 200000, priority: 'critical', tatRemaining: 'Overdue', status: 'default_review', assignedRole: 'field_officer', assignedUser: 'Amit Kallapa', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T102', type: 'completeness_check', loanNo: 'LO00000102', borrower: 'Pooja Sharma', amount: 100000, priority: 'normal', tatRemaining: '2 days', status: 'pending_sanction', assignedRole: 'field_officer', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'fpc', isSpecialCase: false, isException: true },
+  { id: 'T103', type: 'document_verification', loanNo: 'LO00000103', borrower: 'Nitin Gupta', amount: 200000, priority: 'high', tatRemaining: '4 hrs', status: 'submitted', assignedRole: 'field_officer', assignedUser: 'Amit Kallapa', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: true },
+  { id: 'T104', type: 'completeness_check', loanNo: 'LO00000104', borrower: 'Varsha Deshmukh', amount: 200000, priority: 'normal', tatRemaining: '2 days', status: 'default_review', assignedRole: 'field_officer', assignedUser: 'Amit Kallapa', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'fpc', isSpecialCase: false, isException: false },
+  { id: 'T105', type: 'completeness_check', loanNo: 'LO00000105', borrower: 'Anjali Wagh', amount: 250000, priority: 'high', tatRemaining: '4 hrs', status: 'sanctioned', assignedRole: 'credit_manager', assignedUser: 'Priya Kulkarni', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T106', type: 'appraisal', loanNo: 'LO00000106', borrower: 'Ramesh Kulkarni', amount: 150000, priority: 'high', tatRemaining: '4 hrs', status: 'pending_sanction', assignedRole: 'credit_manager', assignedUser: 'Priya Kulkarni', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: true, isException: true },
+  { id: 'T107', type: 'sanction', loanNo: 'LO00000107', borrower: 'Sunita Kamble', amount: 300000, priority: 'critical', tatRemaining: 'Overdue', status: 'submitted', assignedRole: 'credit_manager', assignedUser: 'Priya Kulkarni', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T108', type: 'default_review', loanNo: 'LO00000108', borrower: 'Prakash Rao', amount: 100000, priority: 'normal', tatRemaining: '2 days', status: 'submitted', assignedRole: 'credit_manager', assignedUser: 'Priya Kulkarni', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: true, isException: false },
+  { id: 'T109', type: 'completeness_check', loanNo: 'LO00000109', borrower: 'Kiran Pawar', amount: 150000, priority: 'normal', tatRemaining: '2 days', status: 'submitted', assignedRole: 'credit_manager', assignedUser: 'Priya Kulkarni', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T110', type: 'completeness_check', loanNo: 'LO00000110', borrower: 'Asha Bhosale', amount: 100000, priority: 'high', tatRemaining: '4 hrs', status: 'draft', assignedRole: 'deputy_manager_finance', assignedUser: 'Suresh Patil', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T111', type: 'appraisal', loanNo: 'LO00000111', borrower: 'Vijay Patil', amount: 300000, priority: 'high', tatRemaining: '4 hrs', status: 'ready_for_payment', assignedRole: 'deputy_manager_finance', assignedUser: 'Suresh Patil', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: true, isException: false },
+  { id: 'T112', type: 'completeness_check', loanNo: 'LO00000112', borrower: 'Manoj Thorat', amount: 100000, priority: 'high', tatRemaining: '4 hrs', status: 'ready_for_payment', assignedRole: 'deputy_manager_finance', assignedUser: 'Suresh Patil', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: true, isException: true },
+  { id: 'T113', type: 'appraisal', loanNo: 'LO00000113', borrower: 'Malti Shinde', amount: 150000, priority: 'critical', tatRemaining: 'Overdue', status: 'sanctioned', assignedRole: 'deputy_manager_finance', assignedUser: 'Suresh Patil', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T114', type: 'completeness_check', loanNo: 'LO00000114', borrower: 'Kavita Desai', amount: 200000, priority: 'high', tatRemaining: '4 hrs', status: 'sanctioned', assignedRole: 'deputy_manager_finance', assignedUser: 'Suresh Patil', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T115', type: 'document_verification', loanNo: 'LO00000115', borrower: 'Ramesh Iyer', amount: 200000, priority: 'normal', tatRemaining: '2 days', status: 'sanctioned', assignedRole: 'compliance_team', assignedUser: 'Meera Joshi', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T116', type: 'document_verification', loanNo: 'LO00000116', borrower: 'Ganesh Thorat', amount: 150000, priority: 'normal', tatRemaining: '2 days', status: 'sanctioned', assignedRole: 'compliance_team', assignedUser: 'Meera Joshi', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: true, isException: true },
+  { id: 'T117', type: 'document_verification', loanNo: 'LO00000117', borrower: 'Pooja Sharma', amount: 100000, priority: 'critical', tatRemaining: 'Overdue', status: 'default_review', assignedRole: 'compliance_team', assignedUser: 'Meera Joshi', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'fpc', isSpecialCase: true, isException: false },
+  { id: 'T118', type: 'document_verification', loanNo: 'LO00000118', borrower: 'Nitin Gupta', amount: 100000, priority: 'critical', tatRemaining: 'Overdue', status: 'ready_for_payment', assignedRole: 'compliance_team', assignedUser: 'Meera Joshi', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T119', type: 'document_verification', loanNo: 'LO00000119', borrower: 'Varsha Deshmukh', amount: 100000, priority: 'critical', tatRemaining: 'Overdue', status: 'default_review', assignedRole: 'compliance_team', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T120', type: 'document_verification', loanNo: 'LO00000120', borrower: 'Anjali Wagh', amount: 250000, priority: 'critical', tatRemaining: 'Overdue', status: 'ready_for_payment', assignedRole: 'company_secretary', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: true },
+  { id: 'T121', type: 'document_verification', loanNo: 'LO00000121', borrower: 'Ramesh Kulkarni', amount: 150000, priority: 'normal', tatRemaining: '2 days', status: 'pending_sanction', assignedRole: 'company_secretary', assignedUser: 'Aarti Desai', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: true },
+  { id: 'T122', type: 'document_verification', loanNo: 'LO00000122', borrower: 'Sunita Kamble', amount: 150000, priority: 'high', tatRemaining: '4 hrs', status: 'pending_sanction', assignedRole: 'company_secretary', assignedUser: 'Aarti Desai', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T123', type: 'document_verification', loanNo: 'LO00000123', borrower: 'Prakash Rao', amount: 100000, priority: 'normal', tatRemaining: '2 days', status: 'sanctioned', assignedRole: 'company_secretary', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T124', type: 'document_verification', loanNo: 'LO00000124', borrower: 'Kiran Pawar', amount: 300000, priority: 'high', tatRemaining: '4 hrs', status: 'default_review', assignedRole: 'company_secretary', assignedUser: 'Aarti Desai', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'fpc', isSpecialCase: true, isException: true },
+  { id: 'T125', type: 'sanction', loanNo: 'LO00000125', borrower: 'Asha Bhosale', amount: 200000, priority: 'normal', tatRemaining: '2 days', status: 'submitted', assignedRole: 'sanction_committee', assignedUser: 'Rajesh Sharma', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: true },
+  { id: 'T126', type: 'approval', loanNo: 'LO00000126', borrower: 'Vijay Patil', amount: 250000, priority: 'normal', tatRemaining: '2 days', status: 'ready_for_payment', assignedRole: 'sanction_committee', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'fpc', isSpecialCase: false, isException: false },
+  { id: 'T127', type: 'sanction', loanNo: 'LO00000127', borrower: 'Manoj Thorat', amount: 250000, priority: 'high', tatRemaining: '4 hrs', status: 'ready_for_payment', assignedRole: 'sanction_committee', assignedUser: 'Rajesh Sharma', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T128', type: 'approval', loanNo: 'LO00000128', borrower: 'Malti Shinde', amount: 150000, priority: 'critical', tatRemaining: 'Overdue', status: 'sanctioned', assignedRole: 'sanction_committee', assignedUser: 'Rajesh Sharma', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T129', type: 'sanction', loanNo: 'LO00000129', borrower: 'Kavita Desai', amount: 250000, priority: 'high', tatRemaining: '4 hrs', status: 'default_review', assignedRole: 'sanction_committee', assignedUser: 'Rajesh Sharma', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T130', type: 'sanction', loanNo: 'LO00000130', borrower: 'Ramesh Iyer', amount: 200000, priority: 'high', tatRemaining: '4 hrs', status: 'ready_for_payment', assignedRole: 'cfo', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: true, isException: true },
+  { id: 'T131', type: 'approval', loanNo: 'LO00000131', borrower: 'Ganesh Thorat', amount: 200000, priority: 'normal', tatRemaining: '2 days', status: 'pending_sanction', assignedRole: 'cfo', assignedUser: 'Vikram Nair', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'fpc', isSpecialCase: false, isException: false },
+  { id: 'T132', type: 'sanction', loanNo: 'LO00000132', borrower: 'Pooja Sharma', amount: 200000, priority: 'critical', tatRemaining: 'Overdue', status: 'submitted', assignedRole: 'cfo', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T133', type: 'approval', loanNo: 'LO00000133', borrower: 'Nitin Gupta', amount: 250000, priority: 'critical', tatRemaining: 'Overdue', status: 'sanctioned', assignedRole: 'cfo', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: true, isException: false },
+  { id: 'T134', type: 'sanction', loanNo: 'LO00000134', borrower: 'Varsha Deshmukh', amount: 150000, priority: 'critical', tatRemaining: 'Overdue', status: 'pending_sanction', assignedRole: 'cfo', assignedUser: 'Vikram Nair', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T135', type: 'sanction', loanNo: 'LO00000135', borrower: 'Anjali Wagh', amount: 250000, priority: 'normal', tatRemaining: '2 days', status: 'default_review', assignedRole: 'director', assignedUser: 'Anita Mehta', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T136', type: 'approval', loanNo: 'LO00000136', borrower: 'Ramesh Kulkarni', amount: 300000, priority: 'critical', tatRemaining: 'Overdue', status: 'sanctioned', assignedRole: 'director', assignedUser: 'Anita Mehta', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T137', type: 'sanction', loanNo: 'LO00000137', borrower: 'Sunita Kamble', amount: 150000, priority: 'normal', tatRemaining: '2 days', status: 'sanctioned', assignedRole: 'director', assignedUser: 'Anita Mehta', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T138', type: 'approval', loanNo: 'LO00000138', borrower: 'Prakash Rao', amount: 200000, priority: 'high', tatRemaining: '4 hrs', status: 'submitted', assignedRole: 'director', assignedUser: 'Anita Mehta', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T139', type: 'sanction', loanNo: 'LO00000139', borrower: 'Kiran Pawar', amount: 100000, priority: 'high', tatRemaining: '4 hrs', status: 'submitted', assignedRole: 'director', assignedUser: 'Anita Mehta', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T140', type: 'sap_setup', loanNo: 'LO00000140', borrower: 'Asha Bhosale', amount: 100000, priority: 'critical', tatRemaining: 'Overdue', status: 'default_review', assignedRole: 'senior_manager_finance', assignedUser: 'Deepak Rao', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T141', type: 'disbursement', loanNo: 'LO00000141', borrower: 'Vijay Patil', amount: 300000, priority: 'critical', tatRemaining: 'Overdue', status: 'ready_for_payment', assignedRole: 'senior_manager_finance', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T142', type: 'sap_setup', loanNo: 'LO00000142', borrower: 'Manoj Thorat', amount: 100000, priority: 'normal', tatRemaining: '2 days', status: 'sanctioned', assignedRole: 'senior_manager_finance', assignedUser: 'Deepak Rao', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T143', type: 'disbursement', loanNo: 'LO00000143', borrower: 'Malti Shinde', amount: 100000, priority: 'critical', tatRemaining: 'Overdue', status: 'pending_sanction', assignedRole: 'senior_manager_finance', assignedUser: 'Deepak Rao', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: true },
+  { id: 'T144', type: 'sap_setup', loanNo: 'LO00000144', borrower: 'Kavita Desai', amount: 150000, priority: 'critical', tatRemaining: 'Overdue', status: 'submitted', assignedRole: 'senior_manager_finance', assignedUser: 'Deepak Rao', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T145', type: 'sanction', loanNo: 'LO00000145', borrower: 'Ramesh Iyer', amount: 150000, priority: 'critical', tatRemaining: 'Overdue', status: 'default_review', assignedRole: 'cfc', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'fpc', isSpecialCase: false, isException: false },
+  { id: 'T146', type: 'approval', loanNo: 'LO00000146', borrower: 'Ganesh Thorat', amount: 250000, priority: 'normal', tatRemaining: '2 days', status: 'submitted', assignedRole: 'cfc', assignedUser: 'Santosh Kumar', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T147', type: 'default_review', loanNo: 'LO00000147', borrower: 'Pooja Sharma', amount: 250000, priority: 'critical', tatRemaining: 'Overdue', status: 'sanctioned', assignedRole: 'cfc', assignedUser: 'Santosh Kumar', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T148', type: 'sanction', loanNo: 'LO00000148', borrower: 'Nitin Gupta', amount: 300000, priority: 'critical', tatRemaining: 'Overdue', status: 'submitted', assignedRole: 'cfc', assignedUser: 'Santosh Kumar', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'fpc', isSpecialCase: true, isException: false },
+  { id: 'T149', type: 'approval', loanNo: 'LO00000149', borrower: 'Varsha Deshmukh', amount: 200000, priority: 'normal', tatRemaining: '2 days', status: 'draft', assignedRole: 'cfc', assignedUser: 'Santosh Kumar', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T150', type: 'repayment_posting', loanNo: 'LO00000150', borrower: 'Anjali Wagh', amount: 150000, priority: 'high', tatRemaining: '4 hrs', status: 'submitted', assignedRole: 'accounts', assignedUser: 'Kavita More', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T151', type: 'repayment_posting', loanNo: 'LO00000151', borrower: 'Ramesh Kulkarni', amount: 250000, priority: 'critical', tatRemaining: 'Overdue', status: 'submitted', assignedRole: 'accounts', assignedUser: 'Kavita More', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T152', type: 'repayment_posting', loanNo: 'LO00000152', borrower: 'Sunita Kamble', amount: 200000, priority: 'normal', tatRemaining: '2 days', status: 'default_review', assignedRole: 'accounts', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'fpc', isSpecialCase: true, isException: false },
+  { id: 'T153', type: 'repayment_posting', loanNo: 'LO00000153', borrower: 'Prakash Rao', amount: 250000, priority: 'critical', tatRemaining: 'Overdue', status: 'sanctioned', assignedRole: 'accounts', assignedUser: 'Kavita More', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T154', type: 'repayment_posting', loanNo: 'LO00000154', borrower: 'Kiran Pawar', amount: 150000, priority: 'normal', tatRemaining: '2 days', status: 'sanctioned', assignedRole: 'accounts', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: true, isException: false },
+  { id: 'T155', type: 'repayment_posting', loanNo: 'LO00000155', borrower: 'Asha Bhosale', amount: 300000, priority: 'normal', tatRemaining: '2 days', status: 'pending_sanction', assignedRole: 'sales_team_user', assignedUser: 'Nikhil Jagtap', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T156', type: 'repayment_posting', loanNo: 'LO00000156', borrower: 'Vijay Patil', amount: 200000, priority: 'critical', tatRemaining: 'Overdue', status: 'default_review', assignedRole: 'sales_team_user', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T157', type: 'repayment_posting', loanNo: 'LO00000157', borrower: 'Manoj Thorat', amount: 300000, priority: 'critical', tatRemaining: 'Overdue', status: 'default_review', assignedRole: 'sales_team_user', assignedUser: 'Nikhil Jagtap', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T158', type: 'repayment_posting', loanNo: 'LO00000158', borrower: 'Malti Shinde', amount: 100000, priority: 'normal', tatRemaining: '2 days', status: 'default_review', assignedRole: 'sales_team_user', assignedUser: 'Nikhil Jagtap', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T159', type: 'repayment_posting', loanNo: 'LO00000159', borrower: 'Kavita Desai', amount: 300000, priority: 'normal', tatRemaining: '2 days', status: 'ready_for_payment', assignedRole: 'sales_team_user', assignedUser: 'Nikhil Jagtap', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T160', type: 'completeness_check', loanNo: 'LO00000160', borrower: 'Ramesh Iyer', amount: 150000, priority: 'normal', tatRemaining: '2 days', status: 'submitted', assignedRole: 'admin', assignedUser: 'Sneha Bhosale', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T161', type: 'appraisal', loanNo: 'LO00000161', borrower: 'Ganesh Thorat', amount: 150000, priority: 'critical', tatRemaining: 'Overdue', status: 'pending_sanction', assignedRole: 'admin', assignedUser: 'Sneha Bhosale', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T162', type: 'sanction', loanNo: 'LO00000162', borrower: 'Pooja Sharma', amount: 150000, priority: 'normal', tatRemaining: '2 days', status: 'pending_sanction', assignedRole: 'admin', assignedUser: 'Sneha Bhosale', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T163', type: 'sap_setup', loanNo: 'LO00000163', borrower: 'Nitin Gupta', amount: 100000, priority: 'critical', tatRemaining: 'Overdue', status: 'submitted', assignedRole: 'admin', assignedUser: 'Sneha Bhosale', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
+  { id: 'T164', type: 'completeness_check', loanNo: 'LO00000164', borrower: 'Varsha Deshmukh', amount: 100000, priority: 'high', tatRemaining: '4 hrs', status: 'default_review', assignedRole: 'admin', assignedUser: 'Sneha Bhosale', createdDate: '2026-06-25', dueDate: '2026-06-28', borrowerType: 'individual', isSpecialCase: false, isException: false },
 ];
 
 const priorityConfig: Record<TaskPriority, { color: string; label: string }> = {
@@ -106,7 +162,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ onNavigate }) => {
   const [amountFilter, setAmountFilter] = useState<'all' | 'over_5l' | 'under_5l'>('all');
   const [specialCaseFilter, setSpecialCaseFilter] = useState<'all' | 'yes'>('all');
   const [exceptionFilter, setExceptionFilter] = useState<'all' | 'yes'>('all');
-  const [assignmentFilter, setAssignmentFilter] = useState<'team' | 'me'>('team');
+  const [assignmentFilter, setAssignmentFilter] = useState<'team' | 'me'>(currentUser.role === 'credit_manager' ? 'me' : 'team');
 
   const myTasks = allTasks.filter(t =>
     t.assignedRole === currentUser.role ||
@@ -140,14 +196,20 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ onNavigate }) => {
         <div>
           <h1 className="text-xl font-bold text-slate-900">Task Inbox</h1>
           <p className="text-sm text-slate-500 mt-1">
-            Your pending tasks for role: <span className="font-medium text-green-700">{currentUser.name}</span>
+            {currentUser.role === 'credit_manager' ? (
+              <>Credit Manager work items assigned to you.</>
+            ) : currentUser.role === 'deputy_manager_finance' ? (
+              <>Deputy Manager – Finance work items assigned to your team.</>
+            ) : (
+              <>Your pending tasks for role: <span className="font-medium text-green-700">{currentUser.name}</span></>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
           {criticalCount > 0 && (
             <span className="flex items-center gap-1.5 text-xs font-semibold text-red-700 bg-red-100 px-3 py-1.5 rounded-full">
               <AlertTriangle size={12} />
-              {criticalCount} critical
+              {criticalCount === 1 ? '1 critical' : `${criticalCount} critical`}
             </span>
           )}
           {highCount > 0 && (
@@ -263,9 +325,9 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ onNavigate }) => {
         </div>
       ) : (
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-          <div className="px-6 py-3 border-b border-slate-100 bg-slate-50 flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase">
+          <div className="px-6 py-3 border-b border-slate-100 bg-slate-50 flex items-center gap-2 text-xs font-semibold text-slate-500">
             <Inbox size={14} />
-            {filtered.length} task{filtered.length !== 1 ? 's' : ''} pending
+            {filtered.length} pending task{filtered.length !== 1 ? 's' : ''}
           </div>
           <div className="divide-y divide-slate-50">
             {filtered.map(task => (
@@ -285,7 +347,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ onNavigate }) => {
                 {/* Task type chip */}
                 <div className="flex-shrink-0 w-36">
                   <span className={`text-xs font-medium px-2 py-1 rounded-lg ${typeColors[task.type]}`}>
-                    {typeLabels[task.type]}
+                    {task.type === 'default_review' && currentUser.role === 'credit_manager' ? 'Default follow-up' : typeLabels[task.type]}
                   </span>
                 </div>
 
@@ -300,14 +362,16 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ onNavigate }) => {
                     <span>₹{(task.amount / 100000).toFixed(1)}L</span>
                     <span>Created {task.createdDate}</span>
                     <span className="flex items-center gap-1"><Calendar size={12}/> Due {task.dueDate}</span>
-                    <span className="flex items-center gap-1"><User size={12}/> {task.assignedUser || task.assignedRole.replace(/_/g, ' ')}</span>
+                    {assignmentFilter === 'team' && (
+                      <span className="flex items-center gap-1"><User size={12}/> {task.assignedUser ? `Assigned: ${task.assignedUser}` : currentUser.role === 'deputy_manager_finance' ? `Owner role: ${ROLE_LABELS[task.assignedRole as keyof typeof ROLE_LABELS] || task.assignedRole}` : task.assignedRole.replace(/_/g, ' ')}</span>
+                    )}
                     <StatusBadge label={task.status} size="sm" />
                   </div>
                 </div>
 
                 {/* TAT */}
-                <div className="flex-shrink-0 text-right">
-                  <div className={`text-sm font-semibold ${
+                <div className="flex-shrink-0 text-right w-24">
+                  <div className={`text-sm font-semibold flex justify-end ${
                     task.tatRemaining === 'Overdue' ? 'text-red-600' :
                     task.tatRemaining.includes('hrs') ? 'text-amber-600' :
                     'text-slate-700'
@@ -316,7 +380,9 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ onNavigate }) => {
                       <span className="flex items-center gap-1"><AlertTriangle size={12} />Overdue</span>
                     ) : task.tatRemaining}
                   </div>
-                  <div className="text-xs text-slate-400 mt-0.5">TAT remaining</div>
+                  <div className="text-xs text-slate-400 mt-0.5">
+                    {task.tatRemaining === 'Overdue' ? 'TAT breached' : 'TAT remaining'}
+                  </div>
                 </div>
 
                 {/* Priority */}
@@ -346,7 +412,10 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ onNavigate }) => {
                     }}
                     className="flex-shrink-0 flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors"
                   >
-                    Open <ArrowRight size={12} />
+                    {currentUser.role === 'credit_manager' ? 'Review' 
+                     : (currentUser.role === 'deputy_manager_finance' && task.type === 'completeness_check') ? 'Review'
+                     : (currentUser.role === 'deputy_manager_finance' && task.type === 'appraisal') ? 'Prepare'
+                     : 'Open'} <ArrowRight size={12} />
                   </button>
                   <div className="relative">
                     <button
@@ -357,16 +426,66 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ onNavigate }) => {
                     </button>
                     {activeMenu === task.id && (
                       <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-10 py-1">
-                        <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
-                          <UserPlus size={14} /> Reassign Task
-                        </button>
-                        <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
-                          <MessageSquare size={14} /> Add Comment
-                        </button>
-                        <div className="border-t border-slate-100 my-1"></div>
-                        <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors">
-                          <Ban size={14} /> Mark Blocked
-                        </button>
+                        {currentUser.role === 'credit_manager' ? (
+                          <>
+                            <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+                              <MessageSquare size={14} /> Add follow-up note
+                            </button>
+                            <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+                              <FileText size={14} /> Prepare note
+                            </button>
+                            <div className="border-t border-slate-100 my-1"></div>
+                            <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-green-600 hover:bg-green-50 transition-colors">
+                              <ArrowRight size={14} /> Route for approval
+                            </button>
+                          </>
+                        ) : currentUser.role === 'deputy_manager_finance' ? (
+                          <>
+                            {task.type === 'completeness_check' ? (
+                              <>
+                                <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+                                  <FileText size={14} /> Review completeness
+                                </button>
+                                <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-amber-600 hover:bg-amber-50 transition-colors">
+                                  <AlertTriangle size={14} /> Mark deficiency
+                                </button>
+                                <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+                                  <MessageSquare size={14} /> Request documents
+                                </button>
+                                <div className="border-t border-slate-100 my-1"></div>
+                                <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-green-600 hover:bg-green-50 transition-colors">
+                                  <ArrowRight size={14} /> Submit for appraisal
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+                                  <FileText size={14} /> Prepare appraisal
+                                </button>
+                                <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+                                  <Inbox size={14} /> Save draft
+                                </button>
+                                <div className="border-t border-slate-100 my-1"></div>
+                                <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-green-600 hover:bg-green-50 transition-colors">
+                                  <ArrowRight size={14} /> Submit to Credit Manager
+                                </button>
+                              </>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+                              <UserPlus size={14} /> Reassign Task
+                            </button>
+                            <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+                              <MessageSquare size={14} /> Add Comment
+                            </button>
+                            <div className="border-t border-slate-100 my-1"></div>
+                            <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors">
+                              <Ban size={14} /> Mark Blocked
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>

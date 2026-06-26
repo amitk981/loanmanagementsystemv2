@@ -38,7 +38,7 @@ const servicesAvailed = [
 
 // ─── Communications Log ───────────────────────────────────────────────────────
 const communicationsLog = [
-  { date: '2026-06-15', type: 'SMS', direction: 'Outbound', message: 'EMI reminder: ₹1,05,000 due on 30 Jun 2025. Pay on time to avoid penalty.', sentBy: 'System' },
+  { date: '2026-06-20', type: 'SMS', direction: 'Outbound', message: 'Overdue repayment reminder: ₹1,05,000 was due on 17 Jun 2026. Please pay immediately to avoid penalty.', sentBy: 'System' },
   { date: '2026-06-01', type: 'Email', direction: 'Outbound', message: 'Loan sanction approval notification with sanction letter attached.', sentBy: 'Priya Kulkarni' },
   { date: '2026-05-22', type: 'Call', direction: 'Inbound', message: 'Borrower called to query about interest calculation. Clarified principal-first allocation.', sentBy: 'Priya Kulkarni' },
   { date: '2026-04-10', type: 'Letter', direction: 'Outbound', message: 'Hard copy of Loan Agreement dispatched by registered post. Tracking: RM123456789IN.', sentBy: 'Aarti Desai' },
@@ -80,6 +80,12 @@ const MemberProfile: React.FC<MemberProfileProps> = ({ memberId, onBack }) => {
   const landBasedLimit = 90000; // 4.5 acres × ₹20,000 SOF
   const finalEligible = Math.min(shareholdingLimit, landBasedLimit);
 
+  const currentExposure = memberLoans.reduce((sum, l) => sum + l.outstandingPrincipal, 0);
+  const hasUnresolvedOverdue = memberLoans.some(l => l.status === 'overdue' || l.dpd > 0);
+  
+  const rekycDate = new Date('2026-03-31');
+  const isRekycOverdue = rekycDate < new Date();
+
   const TABS = [
     { id: 'profile',   label: 'Overview' },
     { id: 'shareholding', label: 'Shareholding' },
@@ -113,7 +119,11 @@ const MemberProfile: React.FC<MemberProfileProps> = ({ memberId, onBack }) => {
                 <h1 className="text-xl font-bold text-slate-900">{member.name}</h1>
                 {isFPC && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">FPC</span>}
                 <StatusBadge label={member.activeStatus} size="sm" />
-                <StatusBadge label={member.kycStatus} size="sm" />
+                <StatusBadge 
+                  label={member.kycStatus === 'verified' ? 'KYC verified' : member.kycStatus} 
+                  family={member.kycStatus === 'verified' ? 'approved' : undefined} 
+                  size="sm" 
+                />
                 {member.defaultStatus !== 'no_default' && <StatusBadge label={member.defaultStatus} size="sm" />}
               </div>
               <p className="text-sm text-slate-500 mt-0.5">
@@ -124,8 +134,18 @@ const MemberProfile: React.FC<MemberProfileProps> = ({ memberId, onBack }) => {
               </p>
             </div>
             <div className="flex gap-2 flex-shrink-0">
-              <button className="btn-secondary text-xs">Start Application</button>
-              <button className="btn-secondary text-xs">Update KYC</button>
+              <button 
+                className="btn-secondary text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={hasUnresolvedOverdue || !can('create_application')}
+                title={hasUnresolvedOverdue ? "New application blocked: existing loan overdue." : undefined}
+              >
+                Start Application
+              </button>
+              {can('manage_compliance') || can('edit_members') ? (
+                <button className="btn-secondary text-xs">Update KYC</button>
+              ) : (
+                <button className="btn-secondary text-xs">View KYC</button>
+              )}
             </div>
           </div>
         </div>
@@ -192,7 +212,7 @@ const MemberProfile: React.FC<MemberProfileProps> = ({ memberId, onBack }) => {
               <div className="flex items-center gap-3 bg-amber-50 border border-amber-100 rounded-lg p-3">
                 <div className="flex-1">
                   <p className="text-xs text-slate-500">Aadhaar</p>
-                  <p className="text-sm font-mono font-semibold text-slate-900">{aadhaarRevealed ? member.aadhaar : '****-****-****'}</p>
+                  <p className="text-sm font-mono font-semibold text-slate-900">{aadhaarRevealed ? (can('edit_members') || can('manage_compliance') ? member.aadhaar : mask(member.aadhaar)) : '****-****-****'}</p>
                 </div>
                 <button onClick={() => setAadhaarRevealed(!aadhaarRevealed)} className="text-xs text-amber-700 flex items-center gap-1 hover:underline">
                   {aadhaarRevealed ? <EyeOff size={12} /> : <Eye size={12} />}
@@ -321,7 +341,7 @@ const MemberProfile: React.FC<MemberProfileProps> = ({ memberId, onBack }) => {
                 { label: 'Season / Cycle', value: 'Kharif 2024' },
                 { label: 'Scale of Finance / Acre', value: '₹20,000' },
                 { label: 'Land-based Eligible Limit', value: fmt(landBasedLimit) },
-                { label: 'Final Eligible (Lower of)', value: fmt(finalEligible) },
+                { label: 'Final eligible limit', value: fmt(finalEligible) },
               ].map(({ label, value }) => (
                 <div key={label} className="bg-slate-50 rounded-lg p-3">
                   <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">{label}</p>
@@ -354,7 +374,10 @@ const MemberProfile: React.FC<MemberProfileProps> = ({ memberId, onBack }) => {
         <div className="card space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-slate-800">KYC Status</h3>
-            <StatusBadge label={member.kycStatus} />
+            <StatusBadge 
+              label={member.kycStatus === 'verified' ? 'KYC verified' : member.kycStatus} 
+              family={member.kycStatus === 'verified' ? 'approved' : undefined} 
+            />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
@@ -385,12 +408,14 @@ const MemberProfile: React.FC<MemberProfileProps> = ({ memberId, onBack }) => {
           <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
             <RefreshCw size={16} className="text-amber-600 flex-shrink-0" />
             <div className="flex-1">
-              <p className="text-sm font-semibold text-amber-800">Next Re-KYC Due</p>
+              <p className="text-sm font-semibold text-amber-800">{isRekycOverdue ? 'Re-KYC overdue' : 'Next Re-KYC due'}</p>
               <p className="text-xs text-amber-700">Annual KYC review required by 31 March 2026</p>
             </div>
-            <button className="text-xs bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-lg transition-colors">
-              Initiate Re-KYC
-            </button>
+            {(can('manage_compliance') || can('edit_members')) && (
+              <button className="text-xs bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-lg transition-colors">
+                Initiate Re-KYC
+              </button>
+            )}
           </div>
         </div>
 
@@ -458,7 +483,7 @@ const MemberProfile: React.FC<MemberProfileProps> = ({ memberId, onBack }) => {
                   { label: 'Date of Birth', value: new Date(nom.dob).toLocaleDateString('en-IN') },
                   { label: 'Gender', value: nom.gender },
                   { label: 'Relationship', value: nom.relationship },
-                  { label: 'PAN', value: nom.pan },
+                  { label: 'PAN', value: can('manage_compliance') ? nom.pan : '**********' },
                   { label: 'Aadhaar', value: nom.aadhaar },
                 ].map(({ label, value }) => (
                   <div key={label} className="bg-slate-50 rounded-lg p-3">
@@ -486,18 +511,22 @@ const MemberProfile: React.FC<MemberProfileProps> = ({ memberId, onBack }) => {
               </div>
             </div>
           ))}
-          <div className="card border-dashed text-center py-6">
-            <button className="text-sm text-green-600 font-medium hover:underline">+ Add / Update Nominee</button>
-          </div>
+          {can('edit_members') && (
+            <div className="card border-dashed text-center py-6">
+              <button className="text-sm text-green-600 font-medium hover:underline">+ Add / Update Nominee</button>
+            </div>
+          )}
         </div>
 
         {/* ── Tab 8: Communications ── */}
         <div className="card p-0 overflow-hidden">
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
             <h3 className="font-semibold text-slate-800">Communications Log</h3>
-            <button className="flex items-center gap-1 text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg transition-colors">
-              <MessageSquare size={12} /> Add Entry
-            </button>
+            {can('edit_members') && (
+              <button className="flex items-center gap-1 text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg transition-colors">
+                <MessageSquare size={12} /> Add Entry
+              </button>
+            )}
           </div>
           <div className="divide-y divide-slate-50">
             {communicationsLog.map((c, i) => (
@@ -532,31 +561,37 @@ const MemberProfile: React.FC<MemberProfileProps> = ({ memberId, onBack }) => {
               <p className="text-xs text-slate-400 mt-1">4.5 acres × ₹20,000 Scale of Finance</p>
             </div>
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">Final Eligible (Lower of)</p>
+              <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">Final eligible limit</p>
               <p className="text-2xl font-bold text-green-900 num mt-1">{fmt(finalEligible)}</p>
-              <p className="text-xs text-green-600 mt-1">Per SOP: minimum of shareholding vs land limits</p>
+              <p className="text-xs text-green-600 mt-1">Lower of shareholding and land-based limits</p>
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className={`border rounded-lg p-4 ${member.currentExposure > shareholdingLimit ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
-              <p className={`text-xs font-semibold uppercase tracking-wide ${member.currentExposure > shareholdingLimit ? 'text-red-700' : 'text-green-700'}`}>
+            <div className={`border rounded-lg p-4 ${currentExposure > shareholdingLimit ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
+              <p className={`text-xs font-semibold uppercase tracking-wide ${currentExposure > shareholdingLimit ? 'text-red-700' : 'text-green-700'}`}>
                 Current Exposure (Outstanding)
               </p>
-              <p className={`text-2xl font-bold num mt-1 ${member.currentExposure > shareholdingLimit ? 'text-red-900' : 'text-green-900'}`}>
-                {fmt(member.currentExposure)}
+              <p className={`text-2xl font-bold num mt-1 ${currentExposure > shareholdingLimit ? 'text-red-900' : 'text-green-900'}`}>
+                {fmt(currentExposure)}
               </p>
-              <p className={`text-xs mt-1 ${member.currentExposure > shareholdingLimit ? 'text-red-600' : 'text-green-600'}`}>
-                {member.currentExposure === 0 ? 'No current exposure' : `${((member.currentExposure / shareholdingLimit) * 100).toFixed(1)}% of shareholding limit used`}
+              <p className={`text-xs mt-1 ${currentExposure > shareholdingLimit ? 'text-red-600' : 'text-green-600'}`}>
+                {currentExposure === 0 ? 'No current exposure' : `${((currentExposure / shareholdingLimit) * 100).toFixed(1)}% of shareholding limit used`}
               </p>
             </div>
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Available Headroom</p>
-              <p className={`text-2xl font-bold num mt-1 ${Math.max(0, finalEligible - member.currentExposure) === 0 ? 'text-red-900' : 'text-slate-900'}`}>
-                {fmt(Math.max(0, finalEligible - member.currentExposure))}
+              <p className={`text-2xl font-bold num mt-1 ${Math.max(0, finalEligible - currentExposure) === 0 ? 'text-red-900' : 'text-slate-900'}`}>
+                {fmt(Math.max(0, finalEligible - currentExposure))}
               </p>
               <p className="text-xs text-slate-400 mt-1">Available for new lending</p>
             </div>
           </div>
+          {currentExposure > finalEligible && (
+            <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg p-3 text-red-700">
+              <AlertTriangle size={16} className="flex-shrink-0" />
+              <p className="text-sm font-semibold">New lending blocked: exposure exceeds eligible limit and loan is overdue.</p>
+            </div>
+          )}
         </div>
 
         {/* ── Tab 10: Audit Trail ── */}

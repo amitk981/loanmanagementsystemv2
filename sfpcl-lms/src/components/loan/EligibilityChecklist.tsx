@@ -1,7 +1,7 @@
 import React from 'react';
 import { CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 
-type CheckResult = 'pass' | 'fail' | 'needs_review' | 'pending';
+type CheckResult = 'pass' | 'fail' | 'needs_review' | 'pending' | 'not_required';
 
 interface EligibilityItem {
   id: string;
@@ -21,12 +21,12 @@ const checks: EligibilityItem[] = [
   { id: 'e3', label: 'Individual / FPC active member conditions satisfied', result: 'pass', note: 'Supply to Sahyadri Farms PH Care Ltd. confirmed' },
   { id: 'e4', label: 'No existing default with SFPCL', result: 'pass', note: 'No outstanding default on record' },
   { id: 'e5', label: 'No default with subsidiary / associate companies', result: 'pass', note: 'Confirmed — no subsidiary default' },
-  { id: 'e6', label: 'Land documents (7/12 extract) submitted', result: 'pass', note: 'Land area: 4.5 acres, Dindori, Nashik' },
+  { id: 'e6', label: 'Land documents (7/12 extract) submitted', result: 'pass', note: 'Land area: 3.2 acres, Dindori, Nashik' },
   { id: 'e7', label: 'KYC (PAN + Aadhaar) submitted and verified', result: 'pass', note: 'PAN: ABCDE1234F · Aadhaar: ****4521' },
   { id: 'e8', label: '6-month bank statement submitted', result: 'pass', note: 'RBL Bank account confirmed' },
   { id: 'e9', label: 'Crop plan submitted', result: 'pass', note: 'Grape cultivation, Kharif 2026-27' },
   { id: 'e10', label: 'Loan purpose is crop production / agricultural activity', result: 'pass', note: 'Purpose: Crop production' },
-  { id: 'e11', label: 'Borrower accepts Term Sheet and Loan Agreement terms', result: 'needs_review', note: 'Term Sheet not yet signed — pending documentation stage' },
+  { id: 'e11', label: 'Borrower accepts Term Sheet and Loan Agreement terms', result: 'not_required', note: 'Not required at appraisal — pending documentation stage' },
   { id: 'e12', label: 'Nominee is not a minor', result: 'pass', note: 'Nominee age: 34 years' },
 ];
 
@@ -35,12 +35,14 @@ const resultConfig = {
   fail:         { icon: <XCircle size={16} className="text-red-600" />,        bg: 'bg-red-50',   text: 'text-red-800',   label: 'Fail' },
   needs_review: { icon: <AlertCircle size={16} className="text-amber-600" />,  bg: 'bg-amber-50', text: 'text-amber-800', label: 'Needs Review' },
   pending:      { icon: <AlertCircle size={16} className="text-slate-400" />,  bg: 'bg-slate-50', text: 'text-slate-600', label: 'Pending' },
+  not_required: { icon: <CheckCircle2 size={16} className="text-slate-400" />, bg: 'bg-slate-50', text: 'text-slate-500', label: 'Not required at appraisal' },
 };
 
 const EligibilityChecklist: React.FC<EligibilityChecklistProps> = () => {
-  const pass = checks.filter(c => c.result === 'pass').length;
-  const total = checks.length;
-  const hasBlocking = checks.some(c => c.result === 'fail');
+  const activeChecks = checks.filter(c => c.result !== 'not_required');
+  const pass = activeChecks.filter(c => c.result === 'pass').length;
+  const total = activeChecks.length;
+  const hasBlocking = activeChecks.some(c => c.result === 'fail');
 
   return (
     <div className="space-y-4">
@@ -56,7 +58,7 @@ const EligibilityChecklist: React.FC<EligibilityChecklistProps> = () => {
         {hasBlocking ? (
           <span className="text-xs font-semibold text-red-700 bg-red-100 px-2 py-1 rounded-full">Blocking issues</span>
         ) : (
-          <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-1 rounded-full">Eligible to proceed</span>
+          <span className="text-xs font-semibold text-amber-700 bg-amber-100 px-2 py-1 rounded-full">Appraisal can proceed · documentation pending</span>
         )}
       </div>
 

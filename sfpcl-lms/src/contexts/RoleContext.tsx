@@ -160,7 +160,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
 const RoleContext = createContext<RoleContextValue | null>(null);
 
 export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User>(ROLE_USERS.credit_manager);
+  const [currentUser, setCurrentUser] = useState<User>(ROLE_USERS.deputy_manager_finance);
 
   const setRole = (role: Role) => setCurrentUser(ROLE_USERS[role]);
 

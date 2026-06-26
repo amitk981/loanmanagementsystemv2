@@ -3,6 +3,7 @@ import {
   AlertTriangle, Calculator, Check, CheckCircle2, ChevronLeft, ChevronRight,
   FileCheck, FileText, IndianRupee, Save, Shield, Signature, Upload, User
 } from 'lucide-react';
+import { useRole } from '../../contexts/RoleContext';
 import LoanLimitCalculator from '../../components/loan/LoanLimitCalculator';
 import { members } from '../../data/mockData';
 import type { LoanPurpose, LoanType, Member } from '../../types';
@@ -40,9 +41,25 @@ const REQUIRED_DOCUMENTS = [
 const fmt = (n: number) => '₹' + n.toLocaleString('en-IN');
 const panPattern = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
 
+const formatKyc = (status: string) => {
+  if (status === 'rekyc_due') return 'Re-KYC Due';
+  if (status === 'verified') return 'Verified';
+  if (status === 'pending') return 'Pending';
+  return status;
+};
+
+const formatMemberType = (type: string) => {
+  if (type === 'individual') return 'Individual';
+  if (type === 'fpc') return 'FPC';
+  if (type === 'producer_institution') return 'Producer Institution';
+  return type;
+};
+
 const blankDocs = Object.fromEntries(REQUIRED_DOCUMENTS.map(doc => [doc.id, { uploaded: false, selfAttested: false }]));
 
 const NewApplication: React.FC<NewApplicationProps> = ({ onBack }) => {
+  const { can } = useRole();
+
   const [step, setStep] = useState<Step>('member');
   const [selectedMemberId, setSelectedMemberId] = useState('');
   const [memberSearch, setMemberSearch] = useState('');
@@ -104,12 +121,35 @@ const NewApplication: React.FC<NewApplicationProps> = ({ onBack }) => {
   const shareholdingLimit = applicationForm.sharesHeld * applicationForm.valuationPerShare;
   const landBasedLimit = applicationForm.landAreaAcres * 20000;
   const maximumPermissibleLimit = Math.min(shareholdingLimit, landBasedLimit || shareholdingLimit);
-  const allDocsComplete = REQUIRED_DOCUMENTS.every(doc => documentState[doc.id]?.uploaded && documentState[doc.id]?.selfAttested);
+  
+  const applicableDocuments = REQUIRED_DOCUMENTS.filter(doc => {
+    if (doc.id === 'borrowerAadhaar' && applicationForm.applicantType !== 'individual') return false;
+    if (doc.id.startsWith('nominee') && applicationForm.applicantType !== 'individual') return false;
+    if (doc.id === 'shareCertificate' && applicationForm.shareholdingMode !== 'physical') return false;
+    return true;
+  });
+  
+  const allDocsComplete = applicableDocuments.every(doc => documentState[doc.id]?.uploaded && documentState[doc.id]?.selfAttested);
   const allDeclarationsAccepted = Object.values(applicationForm.declarations).every(Boolean);
 
   const updateField = (field: string, value: string | number | boolean) => {
     setDraftSaved(false);
-    setApplicationForm(prev => ({ ...prev, [field]: value }));
+    setApplicationForm(prev => {
+      const next = { ...prev, [field]: value };
+      if (field === 'nomineeDob' && typeof value === 'string') {
+        const birthDate = new Date(value);
+        if (!isNaN(birthDate.getTime())) {
+          const today = new Date();
+          let age = today.getFullYear() - birthDate.getFullYear();
+          const m = today.getMonth() - birthDate.getMonth();
+          if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+          }
+          next.nomineeAge = age > 0 ? age : 0;
+        }
+      }
+      return next;
+    });
   };
 
   const updateDeclaration = (field: keyof typeof applicationForm.declarations, value: boolean) => {
@@ -150,12 +190,12 @@ const NewApplication: React.FC<NewApplicationProps> = ({ onBack }) => {
 
   const validations: Record<Step, { ok: boolean; message: string }> = {
     member: {
-      ok: Boolean(selectedMember && selectedMember.activeStatus === 'active' && selectedMember.defaultStatus === 'no_default'),
-      message: 'Select an active member with no current default.',
+      ok: Boolean(selectedMember && selectedMember.activeStatus === 'active' && selectedMember.defaultStatus === 'no_default' && selectedMember.kycStatus === 'verified'),
+      message: 'Select an active, KYC-verified member with no current default.',
     },
     applicant: {
       ok: Boolean(applicationForm.borrowerName && applicationForm.memberId && applicationForm.folioNumber && applicationForm.contactNumber && applicationForm.address && panPattern.test(applicationForm.pan) && applicationForm.aadhaar.length >= 4),
-      message: 'Borrower name, member ID, folio, contact, address, valid PAN and Aadhaar last four are mandatory.',
+      message: 'Borrower name, member ID, folio, contact, address, valid PAN and Aadhaar last four digits are mandatory.',
     },
     shareholding: {
       ok: applicationForm.sharesHeld > 0 && Boolean(applicationForm.shareholdingMode) && (applicationForm.shareholdingMode !== 'demat' || applicationForm.dematBoId.length > 5),
@@ -166,8 +206,8 @@ const NewApplication: React.FC<NewApplicationProps> = ({ onBack }) => {
       message: 'Requested amount must be within the permissible limit and purpose must be crop/agriculture related.',
     },
     nominee: {
-      ok: Boolean(applicationForm.nomineeName && applicationForm.nomineeGender && applicationForm.nomineePan && applicationForm.nomineeAadhaar) && applicationForm.nomineeAge >= 18 && panPattern.test(applicationForm.nomineePan),
-      message: 'Nominee name, adult age, gender, PAN and Aadhaar are mandatory.',
+      ok: applicationForm.applicantType !== 'individual' || (Boolean(applicationForm.nomineeName && applicationForm.nomineeGender && applicationForm.nomineePan && applicationForm.nomineeAadhaar) && applicationForm.nomineeAge >= 18 && panPattern.test(applicationForm.nomineePan)),
+      message: applicationForm.applicantType !== 'individual' ? '' : 'Nominee name, adult age, gender, PAN and Aadhaar last four digits are mandatory.',
     },
     documents: {
       ok: allDocsComplete,
@@ -203,6 +243,21 @@ const NewApplication: React.FC<NewApplicationProps> = ({ onBack }) => {
     if (stepIndex > 0) setStep(STEP_ORDER[stepIndex - 1]);
     else onBack();
   };
+
+  if (!can('create_application')) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto">
+        <div className="card text-center py-12">
+          <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle size={32} className="text-amber-600" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-900 mb-2">Access Denied</h2>
+          <p className="text-slate-500 mb-6">You do not have permission to create loan applications.</p>
+          <button onClick={onBack} className="btn-secondary">Back to Applications</button>
+        </div>
+      </div>
+    );
+  }
 
   if (submitted) {
     return (
@@ -265,7 +320,7 @@ const NewApplication: React.FC<NewApplicationProps> = ({ onBack }) => {
           <>
             <div>
               <h2 className="text-lg font-semibold text-slate-900">Validate Member</h2>
-              <p className="text-sm text-slate-500">Only active members without current default can submit a loan application.</p>
+              <p className="text-sm text-slate-500">Only active members with no unresolved default can proceed.</p>
             </div>
             <input
               type="text"
@@ -296,14 +351,14 @@ const NewApplication: React.FC<NewApplicationProps> = ({ onBack }) => {
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold text-slate-900">{member.name}</span>
                         <span className="text-xs text-slate-400">{member.folioNumber}</span>
-                        <span className="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">{member.memberType.replace('_', ' ')}</span>
+                        <span className="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">{formatMemberType(member.memberType)}</span>
                         {member.activeStatus !== 'active' && <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Inactive / Review</span>}
                         {member.defaultStatus !== 'no_default' && <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded">Default on record</span>}
                       </div>
                       <div className="text-xs text-slate-500 mt-1">{member.address}</div>
                       <div className="flex flex-wrap gap-3 mt-1 text-xs text-slate-400">
                         <span>{member.sharesHeld} shares</span>
-                        <span>KYC: {member.kycStatus}</span>
+                        <span>KYC: {formatKyc(member.kycStatus)}</span>
                         <span>Supply years: {member.supplyYears}</span>
                         <span>Exposure: {fmt(member.currentExposure)}</span>
                       </div>
@@ -336,15 +391,15 @@ const NewApplication: React.FC<NewApplicationProps> = ({ onBack }) => {
                   <option value="producer_institution">Producer Institution</option>
                 </select>
               </Field>
-              <TextField label="Borrower Name" value={applicationForm.borrowerName} onChange={v => updateField('borrowerName', v)} />
-              <TextField label="Member ID" value={applicationForm.memberId} onChange={v => updateField('memberId', v)} />
-              <TextField label="Folio Number" value={applicationForm.folioNumber} onChange={v => updateField('folioNumber', v)} />
-              <TextField label="Contact Number" value={applicationForm.contactNumber} onChange={v => updateField('contactNumber', v)} />
-              <TextField label="Email" value={applicationForm.email} onChange={v => updateField('email', v)} />
-              <TextField label="PAN" value={applicationForm.pan} onChange={v => updateField('pan', v.toUpperCase())} />
-              <TextField label="Aadhaar last 4 digits" value={applicationForm.aadhaar} onChange={v => updateField('aadhaar', v)} />
+              <TextField label="Borrower Name" value={applicationForm.borrowerName} onChange={v => updateField('borrowerName', v)} readOnly />
+              <TextField label="Member ID" value={applicationForm.memberId} onChange={v => updateField('memberId', v)} readOnly />
+              <TextField label="Folio Number" value={applicationForm.folioNumber} onChange={v => updateField('folioNumber', v)} readOnly />
+              <TextField label="Contact Number" value={applicationForm.contactNumber} onChange={v => updateField('contactNumber', v)} readOnly />
+              <TextField label="Email" value={applicationForm.email} onChange={v => updateField('email', v)} readOnly />
+              <TextField label="PAN" value={applicationForm.pan} onChange={v => updateField('pan', v.toUpperCase())} readOnly />
+              <TextField label="Aadhaar last four digits" value={applicationForm.aadhaar} onChange={v => updateField('aadhaar', v)} readOnly />
               <Field label="Registered Address" className="sm:col-span-2">
-                <textarea value={applicationForm.address} onChange={e => updateField('address', e.target.value)} rows={3} className="field-input resize-none" />
+                <textarea value={applicationForm.address} onChange={e => updateField('address', e.target.value)} rows={3} className="field-input bg-slate-50 cursor-not-allowed text-slate-500 border-slate-200 resize-none" readOnly />
               </Field>
             </div>
           </>
@@ -357,7 +412,7 @@ const NewApplication: React.FC<NewApplicationProps> = ({ onBack }) => {
               <p className="text-sm text-slate-500">Capture shareholding mode and valuation before calculating permissible loan limits.</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <NumberField label="Number of Shares Held" value={applicationForm.sharesHeld} onChange={v => updateField('sharesHeld', v)} />
+              <NumberField label="Number of Shares Held" value={applicationForm.sharesHeld} readOnly />
               <Field label="Shareholding Mode">
                 <select value={applicationForm.shareholdingMode} onChange={e => updateField('shareholdingMode', e.target.value)} className="field-select">
                   <option value="physical">Physical</option>
@@ -365,16 +420,19 @@ const NewApplication: React.FC<NewApplicationProps> = ({ onBack }) => {
                   <option value="mixed">Mixed</option>
                 </select>
               </Field>
-              <NumberField label="Latest Valuation per Share" value={applicationForm.valuationPerShare} onChange={v => updateField('valuationPerShare', v)} />
+              <NumberField label="Latest Valuation per Share" value={applicationForm.valuationPerShare} readOnly />
               <NumberField label="Land Area Under Cultivation (acres)" value={applicationForm.landAreaAcres} onChange={v => updateField('landAreaAcres', v)} />
-              {(applicationForm.shareholdingMode === 'demat' || applicationForm.shareholdingMode === 'mixed') && (
+              {applicationForm.shareholdingMode === 'demat' && (
                 <TextField label="Demat BO ID" value={applicationForm.dematBoId} onChange={v => updateField('dematBoId', v)} />
               )}
             </div>
+            {applicationForm.sharesHeld === 0 && (
+              <Warning>Enter shares held to calculate the shareholding limit.</Warning>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <LimitCard label="Shareholding Limit" value={shareholdingLimit} />
+              <LimitCard label="Shareholding Limit" value={applicationForm.sharesHeld === 0 ? 0 : shareholdingLimit} />
               <LimitCard label="Land-Based Limit" value={landBasedLimit} />
-              <LimitCard label="Maximum Permissible Limit" value={maximumPermissibleLimit} />
+              <LimitCard label="Maximum Permissible Limit" value={applicationForm.sharesHeld === 0 ? 0 : maximumPermissibleLimit} />
             </div>
           </>
         )}
@@ -386,7 +444,7 @@ const NewApplication: React.FC<NewApplicationProps> = ({ onBack }) => {
               <p className="text-sm text-slate-500">Loan purpose must be crop production or agriculture activity.</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <NumberField label="Required Loan Amount" value={applicationForm.requestedAmount} onChange={v => updateField('requestedAmount', v)} />
+              <NumberField label="Requested Loan Amount" value={applicationForm.requestedAmount} onChange={v => updateField('requestedAmount', v)} />
               <Field label="Loan Purpose">
                 <select value={applicationForm.purpose} onChange={e => updateField('purpose', e.target.value)} className="field-select">
                   <option value="crop_production">Crop Production</option>
@@ -405,7 +463,13 @@ const NewApplication: React.FC<NewApplicationProps> = ({ onBack }) => {
                 </select>
               </Field>
               <NumberField label="Tenure (months)" value={applicationForm.tenure} onChange={v => updateField('tenure', v)} />
-              <TextField label="Subsidiary Repayment Linkage" value={applicationForm.subsidiaryRepayment} onChange={v => updateField('subsidiaryRepayment', v)} />
+              <Field label="Subsidiary Repayment Linkage">
+                <select value={applicationForm.subsidiaryRepayment} onChange={e => updateField('subsidiaryRepayment', e.target.value)} className="field-select">
+                  <option value="">None</option>
+                  <option value="Sahyadri Farms Post Harvest Care Ltd.">Sahyadri Farms Post Harvest Care Ltd.</option>
+                  <option value="Sahyadri Agro Retails">Sahyadri Agro Retails</option>
+                </select>
+              </Field>
             </div>
             {selectedMember && applicationForm.requestedAmount > 0 && (
               <LoanLimitCalculator
@@ -425,30 +489,34 @@ const NewApplication: React.FC<NewApplicationProps> = ({ onBack }) => {
           <>
             <div>
               <h2 className="text-lg font-semibold text-slate-900">Nominee Details</h2>
-              <p className="text-sm text-slate-500">Nominee must be an adult. PAN, Aadhaar and signature are mandatory.</p>
+              <p className="text-sm text-slate-500">Nominee name, adult age, gender, PAN and Aadhaar last four digits are mandatory.</p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <TextField label="Nominee Full Name" value={applicationForm.nomineeName} onChange={v => updateField('nomineeName', v)} />
-              <Field label="Date of Birth">
-                <input type="date" value={applicationForm.nomineeDob} onChange={e => updateField('nomineeDob', e.target.value)} className="field-input" />
-              </Field>
-              <NumberField label="Age" value={applicationForm.nomineeAge} onChange={v => updateField('nomineeAge', v)} />
-              <Field label="Gender">
-                <select value={applicationForm.nomineeGender} onChange={e => updateField('nomineeGender', e.target.value)} className="field-select">
-                  <option value="">Select gender</option>
-                  <option value="female">Female</option>
-                  <option value="male">Male</option>
-                  <option value="other">Other</option>
-                </select>
-              </Field>
-              <TextField label="Relationship to Borrower" value={applicationForm.nomineeRelationship} onChange={v => updateField('nomineeRelationship', v)} />
-              <TextField label="Mobile Number" value={applicationForm.nomineeMobile} onChange={v => updateField('nomineeMobile', v)} />
-              <TextField label="PAN" value={applicationForm.nomineePan} onChange={v => updateField('nomineePan', v.toUpperCase())} />
-              <TextField label="Aadhaar last 4 digits" value={applicationForm.nomineeAadhaar} onChange={v => updateField('nomineeAadhaar', v)} />
-              <Field label="Nominee Address" className="sm:col-span-2">
-                <textarea value={applicationForm.nomineeAddress} onChange={e => updateField('nomineeAddress', e.target.value)} rows={3} className="field-input resize-none" />
-              </Field>
-            </div>
+            {applicationForm.applicantType !== 'individual' ? (
+              <Warning>Authorised signatory flow gap: Nominee details are not applicable for institutional borrowers. Please proceed to the next step.</Warning>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <TextField label="Nominee Full Name" value={applicationForm.nomineeName} onChange={v => updateField('nomineeName', v)} />
+                <Field label="Date of Birth">
+                  <input type="date" value={applicationForm.nomineeDob} onChange={e => updateField('nomineeDob', e.target.value)} className="field-input" />
+                </Field>
+                <NumberField label="Age" value={applicationForm.nomineeAge} readOnly />
+                <Field label="Gender">
+                  <select value={applicationForm.nomineeGender} onChange={e => updateField('nomineeGender', e.target.value)} className="field-select">
+                    <option value="">Select gender</option>
+                    <option value="female">Female</option>
+                    <option value="male">Male</option>
+                    <option value="other">Other</option>
+                  </select>
+                </Field>
+                <TextField label="Relationship to Borrower" value={applicationForm.nomineeRelationship} onChange={v => updateField('nomineeRelationship', v)} />
+                <TextField label="Mobile Number" value={applicationForm.nomineeMobile} onChange={v => updateField('nomineeMobile', v)} />
+                <TextField label="PAN" value={applicationForm.nomineePan} onChange={v => updateField('nomineePan', v.toUpperCase())} />
+                <TextField label="Aadhaar last four digits" value={applicationForm.nomineeAadhaar} onChange={v => updateField('nomineeAadhaar', v)} />
+                <Field label="Nominee Address" className="sm:col-span-2">
+                  <textarea value={applicationForm.nomineeAddress} onChange={e => updateField('nomineeAddress', e.target.value)} rows={3} className="field-input resize-none" />
+                </Field>
+              </div>
+            )}
           </>
         )}
 
@@ -459,7 +527,7 @@ const NewApplication: React.FC<NewApplicationProps> = ({ onBack }) => {
               <p className="text-sm text-slate-500">Upload and self-attestation checks mirror the borrower portal and completeness checklist.</p>
             </div>
             <div className="space-y-3">
-              {REQUIRED_DOCUMENTS.map(doc => {
+              {applicableDocuments.map(doc => {
                 const state = documentState[doc.id];
                 return (
                   <div key={doc.id} className="border border-slate-200 rounded-lg p-4">
@@ -470,10 +538,10 @@ const NewApplication: React.FC<NewApplicationProps> = ({ onBack }) => {
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <button onClick={() => toggleDocument(doc.id, 'uploaded')} className={`px-3 py-1.5 rounded-lg border text-xs font-semibold ${state.uploaded ? 'bg-green-50 border-green-200 text-green-700' : 'border-slate-200 text-slate-600'}`}>
-                          {state.uploaded ? 'Uploaded' : 'Mark Uploaded'}
+                          {state.uploaded ? 'Uploaded' : 'Upload'}
                         </button>
                         <button onClick={() => toggleDocument(doc.id, 'selfAttested')} className={`px-3 py-1.5 rounded-lg border text-xs font-semibold ${state.selfAttested ? 'bg-green-50 border-green-200 text-green-700' : 'border-slate-200 text-slate-600'}`}>
-                          {state.selfAttested ? 'Self-attested' : 'Self-attested?'}
+                          {state.selfAttested ? 'Self-attested' : 'Mark self-attested'}
                         </button>
                       </div>
                     </div>
@@ -526,12 +594,12 @@ const NewApplication: React.FC<NewApplicationProps> = ({ onBack }) => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="border border-slate-200 rounded-lg p-4">
                 <h3 className="font-semibold text-slate-900 mb-3">Application Summary</h3>
-                <SummaryRow label="Applicant" value={applicationForm.borrowerName} />
-                <SummaryRow label="Folio / Shares" value={`${applicationForm.folioNumber} / ${applicationForm.sharesHeld}`} />
-                <SummaryRow label="Requested Amount" value={fmt(applicationForm.requestedAmount)} />
-                <SummaryRow label="Eligible Limit" value={fmt(maximumPermissibleLimit)} />
-                <SummaryRow label="Purpose" value={applicationForm.purpose.replace(/_/g, ' ')} />
-                <SummaryRow label="Nominee" value={`${applicationForm.nomineeName || '—'} · Age ${applicationForm.nomineeAge || '—'}`} />
+                <SummaryRow label="Applicant" value={applicationForm.borrowerName || '—'} />
+                <SummaryRow label="Folio / Shares" value={`${applicationForm.folioNumber || '—'} / ${applicationForm.sharesHeld || '—'}`} />
+                <SummaryRow label="Requested Amount" value={applicationForm.requestedAmount ? fmt(applicationForm.requestedAmount) : '—'} />
+                <SummaryRow label="Eligible Limit" value={maximumPermissibleLimit ? fmt(maximumPermissibleLimit) : '—'} />
+                <SummaryRow label="Purpose" value={applicationForm.purpose.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} />
+                <SummaryRow label="Nominee" value={applicationForm.applicantType !== 'individual' ? 'Not Applicable' : `${applicationForm.nomineeName || '—'} · Age ${applicationForm.nomineeAge || '—'}`} />
               </div>
               <div className="border border-slate-200 rounded-lg p-4">
                 <h3 className="font-semibold text-slate-900 mb-3">Completeness Checklist</h3>
@@ -581,15 +649,27 @@ const Field: React.FC<{ label: string; children: React.ReactNode; className?: st
   </div>
 );
 
-const TextField: React.FC<{ label: string; value: string; onChange: (value: string) => void }> = ({ label, value, onChange }) => (
+const TextField: React.FC<{ label: string; value: string; onChange?: (value: string) => void; readOnly?: boolean }> = ({ label, value, onChange, readOnly }) => (
   <Field label={label}>
-    <input value={value} onChange={e => onChange(e.target.value)} className="field-input" />
+    <input 
+      value={value} 
+      onChange={e => onChange?.(e.target.value)} 
+      className={`field-input ${readOnly ? 'bg-slate-50 cursor-not-allowed text-slate-500 border-slate-200' : ''}`} 
+      readOnly={readOnly}
+    />
   </Field>
 );
 
-const NumberField: React.FC<{ label: string; value: number; onChange: (value: number) => void }> = ({ label, value, onChange }) => (
+const NumberField: React.FC<{ label: string; value: number; onChange?: (value: number) => void; readOnly?: boolean }> = ({ label, value, onChange, readOnly }) => (
   <Field label={label}>
-    <input type="number" value={value || ''} onChange={e => onChange(Number(e.target.value))} className="field-input" min={0} />
+    <input 
+      type="number" 
+      value={value || ''} 
+      onChange={e => onChange?.(Number(e.target.value))} 
+      className={`field-input ${readOnly ? 'bg-slate-50 cursor-not-allowed text-slate-500 border-slate-200' : ''}`} 
+      min={0}
+      readOnly={readOnly}
+    />
   </Field>
 );
 

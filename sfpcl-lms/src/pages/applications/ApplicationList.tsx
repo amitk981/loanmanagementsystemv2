@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { Plus, Search, Filter, ChevronDown } from 'lucide-react';
 import StatusBadge from '../../components/ui/StatusBadge';
 import { loanApplications } from '../../data/mockData';
+import { useRole } from '../../contexts/RoleContext';
 import type { ApplicationStatus } from '../../types';
 
-const fmt = (n: number) => '₹' + n.toLocaleString('en-IN');
+const fmt = (n?: number) => n === undefined ? '—' : '₹' + n.toLocaleString('en-IN');
 
 interface ApplicationListProps {
   onNew: () => void;
@@ -25,6 +26,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const ApplicationList: React.FC<ApplicationListProps> = ({ onNew, onSelect }) => {
+  const { can } = useRole();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'all'>('all');
   const [exceptionOnly, setExceptionOnly] = useState(false);
@@ -46,10 +48,12 @@ const ApplicationList: React.FC<ApplicationListProps> = ({ onNew, onSelect }) =>
           <h1 className="text-xl font-bold text-slate-900">Loan Applications</h1>
           <p className="text-sm text-slate-500 mt-0.5">{filtered.length} application{filtered.length !== 1 ? 's' : ''}</p>
         </div>
-        <button onClick={onNew} className="btn-primary flex items-center gap-2">
-          <Plus size={16} />
-          New Application
-        </button>
+        {can('create_application') && (
+          <button onClick={onNew} className="btn-primary flex items-center gap-2">
+            <Plus size={16} />
+            New Application
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -143,13 +147,15 @@ const ApplicationList: React.FC<ApplicationListProps> = ({ onNew, onSelect }) =>
                       <div className="text-slate-700">{app.currentOwner}</div>
                     </td>
                     <td className="table-cell">
-                      {app.tatDaysRemaining !== undefined && (
+                      {app.tatDaysRemaining !== undefined ? (
                         <span className={`text-xs font-semibold ${
                           app.tatDaysRemaining === 0 ? 'text-red-600' :
                           app.tatDaysRemaining <= 1 ? 'text-amber-600' : 'text-slate-500'
                         }`}>
                           {app.tatDaysRemaining === 0 ? 'Overdue' : `${app.tatDaysRemaining}d left`}
                         </span>
+                      ) : (
+                        <span className="text-slate-400">—</span>
                       )}
                     </td>
                   </tr>

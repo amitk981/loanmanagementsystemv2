@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Scale, ChevronRight, FileText, Check, CheckCircle2, XCircle,
   AlertTriangle, User, Shield, RefreshCw, Clock, BarChart2,
@@ -7,13 +7,19 @@ import {
 } from 'lucide-react';
 import StatusBadge from '../../components/ui/StatusBadge';
 import AlertBanner from '../../components/ui/AlertBanner';
-import StageStepper from '../../components/ui/StageStepper';
 import LoanLimitCalculator from '../../components/loan/LoanLimitCalculator';
 import EligibilityChecklist from '../../components/loan/EligibilityChecklist';
 import { loanApplications, members } from '../../data/mockData';
 import { useRole } from '../../contexts/RoleContext';
 
 const fmt = (n: number) => '₹' + n.toLocaleString('en-IN');
+
+const formatBadge = (status: string) => {
+  if (status === 'reference_generated') return 'Verification pending';
+  if (status === 'appraisal_pending') return 'Appraisal draft pending';
+  if (status === 'credit_review') return 'Credit review pending';
+  return status.replace(/_/g, ' ');
+};
 
 // ── Risk Rating options per spec ──────────────────────────────────────────
 const RISK_RATINGS = ['low', 'medium', 'high', 'very_high'] as const;
@@ -27,13 +33,15 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
   const appraisalQueue = loanApplications.filter(a =>
     ['reference_generated', 'appraisal_pending', 'credit_review'].includes(a.status)
   );
-  const initialApp = initialSelectedId ? appraisalQueue.find(a => a.id === initialSelectedId || a.applicationNumber === initialSelectedId) : null;
-  const [selected, setSelected] = useState<string | null>(
-    initialApp?.id || appraisalQueue[0]?.id || null
-  );
+  const initialApp = initialSelectedId ? appraisalQueue.find(a => a.id === initialSelectedId || a.applicationNumber === initialSelectedId) : appraisalQueue[0];
+  const [selected, setSelected] = useState<string | null>(initialApp?.id || null);
   const [noteText, setNoteText] = useState('');
-  const [riskRating, setRiskRating] = useState<typeof RISK_RATINGS[number]>('low');
-  const [appraisalStep, setAppraisalStep] = useState<'verification' | 'appraisal' | 'submitted'>('verification');
+  const [riskRating, setRiskRating] = useState<typeof RISK_RATINGS[number]>(initialApp?.isException ? 'high' : 'low');
+  
+  const [appraisalStep, setAppraisalStep] = useState<'verification' | 'appraisal' | 'submitted'>(
+    initialApp?.status === 'reference_generated' ? 'verification' : 
+    initialApp?.status === 'appraisal_pending' ? 'appraisal' : 'submitted'
+  );
   const [recommendedAmount, setRecommendedAmount] = useState('');
   const [recommendedTenure, setRecommendedTenure] = useState('12');
   const [securityProposed, setSecurityProposed] = useState('SH-4 physical share transfer form, PoA, blank-dated cheque');
@@ -43,14 +51,16 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
   const [recommendation, setRecommendation] = useState<'approve' | 'approve_conditions' | 'exception' | 'reject'>('approve');
   const [creditManagerComment, setCreditManagerComment] = useState('');
   const [appraisalDraftSaved, setAppraisalDraftSaved] = useState(false);
+  const [decisionStatus, setDecisionStatus] = useState<null | 'forwarded' | 'returned' | 'rejected'>(null);
   const { currentUser, can } = useRole();
 
   // ── S16 Active Member Verification ──────────────────────────────────────
-  const [activeMemberVerified, setActiveMemberVerified] = useState(false);
+  const [activeMemberVerified, setActiveMemberVerified] = useState(initialApp?.status !== 'reference_generated');
+  const [activeMemberRelaxationRecorded, setActiveMemberRelaxationRecorded] = useState(false);
   const [activeMemberNote, setActiveMemberNote] = useState('');
 
   // ── S17 KYC Verification ─────────────────────────────────────────────────
-  const [kycVerified, setKycVerified] = useState(false);
+  const [kycVerified, setKycVerified] = useState(initialApp?.status !== 'reference_generated' || members.find(m => m.id === initialApp?.memberId)?.kycStatus === 'verified');
   const [kycNote, setKycNote] = useState('');
 
   // Credit risk score ────────────────────────────────────────────────────────
@@ -60,22 +70,41 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
   const app = appraisalQueue.find(a => a.id === selected);
   const member = app ? members.find(m => m.id === app.memberId) : null;
 
+  useEffect(() => {
+    setDecisionStatus(null);
+    if (app?.status === 'credit_review') {
+      setRecommendedAmount(String(app.requestedAmount));
+      setRecommendation(app.isException ? 'exception' : 'approve');
+      setRiskRationale('High risk due to requested amount exceeding eligible limit. Member has strong repayment history and adequate subsidiary income to service the loan.');
+      setBankObservation('6-month statement shows regular dairy receipts averaging ₹45,000/month. No bounce history.');
+      setNoteText('Appraisal note summary:\n- Member seeks ₹3.5L for crop production.\n- Eligible limit is ₹64k based on 3.2 acres.\n- Exception recommended based on strong dairy income.');
+    }
+  }, [app?.id]);
+
   const isDMFinance = currentUser.role === 'deputy_manager_finance';
   const isCreditManager = currentUser.role === 'credit_manager';
 
-  const canProceedToAppraisal = currentUser.role === 'admin' || (activeMemberVerified && kycVerified && can('do_appraisal'));
+  const allowedToPrepareAppraisal = can('do_appraisal') && !['admin', 'auditor', 'cfo', 'director', 'cfc', 'accounts', 'sales_team_user', 'sanction_committee'].includes(currentUser.role);
+  const isAdmin = currentUser.role === 'admin';
+  const canProceedToAppraisal = isAdmin || (activeMemberVerified && kycVerified && allowedToPrepareAppraisal);
   const recommendedAmountNumber = Number(recommendedAmount || 0);
   const recommendedWithinLimit = app ? recommendedAmountNumber > 0 && recommendedAmountNumber <= app.eligibleAmount : false;
   const requiresException = app?.isException || recommendation === 'exception' || (recommendedAmountNumber > 0 && app ? recommendedAmountNumber > app.eligibleAmount : false);
-  const canForwardToSanction = currentUser.role === 'admin' || (
-    noteText.trim().length > 10 &&
+  const canForwardToSanction = isAdmin || (noteText.trim().length > 10 &&
     riskRating &&
     riskRationale.trim().length > 5 &&
     bankObservation.trim().length > 5 &&
     securityProposed.trim().length > 5 &&
     recommendedAmountNumber > 0 &&
-    (recommendedWithinLimit || requiresException)
-  );
+    (recommendedWithinLimit || requiresException));
+
+  const handleRecordRelaxation = () => {
+    if (can('approve_sanction')) {
+      setActiveMemberVerified(true);
+    } else {
+      setActiveMemberRelaxationRecorded(true);
+    }
+  };
 
   const workflowSteps = [
     {
@@ -84,7 +113,7 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
       title: 'Verify',
       owner: 'DM Finance',
       description: activeMemberVerified && kycVerified ? 'Active member and KYC verified' : 'Complete active member and KYC checks',
-      state: activeMemberVerified && kycVerified ? 'complete' : appraisalStep === 'verification' ? 'active' : 'available',
+      state: (activeMemberVerified && kycVerified) || isAdmin ? 'complete' : appraisalStep === 'verification' ? 'active' : 'available',
       count: `${Number(activeMemberVerified) + Number(kycVerified)}/2 checks`,
     },
     {
@@ -93,7 +122,7 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
       title: 'Appraise',
       owner: 'DM Finance',
       description: canForwardToSanction ? 'Appraisal note is ready to forward' : 'Enter recommendation, risk, security and conditions',
-      state: appraisalStep === 'submitted' || canForwardToSanction ? 'complete' : appraisalStep === 'appraisal' ? 'active' : (activeMemberVerified && kycVerified) ? 'available' : 'locked',
+      state: appraisalStep === 'submitted' || canForwardToSanction ? 'complete' : appraisalStep === 'appraisal' ? 'active' : canProceedToAppraisal ? 'available' : 'locked',
       count: canForwardToSanction ? 'Ready' : `${[
         noteText.trim().length > 10,
         riskRationale.trim().length > 5,
@@ -105,11 +134,11 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
     {
       step: 'submitted' as const,
       label: 'Step 3',
-      title: 'Forward',
-      owner: isCreditManager ? 'Credit Manager' : 'Credit Manager review',
-      description: appraisalStep === 'submitted' ? 'Forwarded for review / sanction routing' : 'Review package and forward after appraisal',
+      title: 'Review',
+      owner: isCreditManager ? 'Credit Manager' : 'Credit Manager',
+      description: decisionStatus === 'forwarded' ? 'Forwarded to Sanction Committee' : decisionStatus === 'returned' ? 'Returned to appraisal' : decisionStatus === 'rejected' ? 'Rejected' : 'Review package and record decision',
       state: appraisalStep === 'submitted' ? 'complete' : canForwardToSanction ? 'available' : 'locked',
-      count: appraisalStep === 'submitted' ? 'Done' : 'Pending',
+      count: decisionStatus ? 'Done' : 'Pending',
     },
   ];
 
@@ -119,37 +148,56 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
         <div>
           <h1 className="text-xl font-bold text-slate-900">Appraisal Workbench</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            {appraisalQueue.length} application{appraisalQueue.length !== 1 ? 's' : ''} pending appraisal
+            {appraisalQueue.length} application{appraisalQueue.length !== 1 ? 's' : ''} in appraisal workbench
             {' · '}Logged in as: <span className="font-semibold text-slate-700">{currentUser.role.replace(/_/g, ' ')}</span>
           </p>
         </div>
       </div>
 
       <div className="card">
-        <div className="p-4 border-b border-slate-100">
-          <StageStepper 
-            steps={[
-              {
-                id: 'verification',
-                label: 'Step 1: Verify',
-                sublabel: 'DM Finance',
-                state: (activeMemberVerified && kycVerified) ? 'completed' : appraisalStep === 'verification' ? 'in_progress' : 'not_started'
-              },
-              {
-                id: 'appraisal',
-                label: 'Step 2: Appraise',
-                sublabel: 'DM Finance',
-                state: appraisalStep === 'submitted' || canForwardToSanction ? 'completed' : appraisalStep === 'appraisal' ? 'in_progress' : (activeMemberVerified && kycVerified) ? 'not_started' : 'blocked'
-              },
-              {
-                id: 'forward',
-                label: 'Step 3: Forward',
-                sublabel: 'Credit Manager',
-                state: appraisalStep === 'submitted' ? 'completed' : canForwardToSanction ? 'not_started' : 'blocked'
-              }
-            ]}
-            onStepClick={(id) => setAppraisalStep(id as any)}
-          />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {workflowSteps.map((item, i) => {
+            const isLocked = item.state === 'locked';
+            const isActive = item.state === 'active';
+            const isComplete = item.state === 'complete';
+            return (
+              <button
+                key={item.step}
+                type="button"
+                disabled={isLocked}
+                onClick={() => !isLocked && setAppraisalStep(item.step)}
+                className={`text-left rounded-lg border p-4 transition-colors ${
+                  isActive ? 'border-green-500 bg-green-50 shadow-sm' :
+                  isComplete ? 'border-green-200 bg-white' :
+                  isLocked ? 'border-slate-200 bg-slate-50 opacity-70 cursor-not-allowed' :
+                  'border-slate-200 bg-white hover:border-green-200 hover:bg-green-50'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className={`text-xs font-semibold ${isLocked ? 'text-slate-400' : 'text-green-700'}`}>
+                      {item.label}
+                    </div>
+                    <div className={`mt-1 font-bold ${isLocked ? 'text-slate-500' : 'text-slate-900'}`}>
+                      {item.title}
+                    </div>
+                  </div>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    isComplete ? 'bg-green-600 text-white' :
+                    isActive ? 'bg-green-100 text-green-700' :
+                    isLocked ? 'bg-slate-100 text-slate-400' : 'bg-amber-50 text-amber-600'
+                  }`}>
+                    {isComplete ? <CheckCircle2 size={16} /> : isLocked ? <Lock size={15} /> : i === 1 ? <FileText size={15} /> : i === 2 ? <Send size={15} /> : <BadgeCheck size={15} />}
+                  </div>
+                </div>
+                <div className="mt-3 text-sm text-slate-600">{item.description}</div>
+                <div className="mt-3 flex items-center justify-between gap-3 text-xs">
+                  <span className="text-slate-500">Owner: {item.owner}</span>
+                  <span className={`font-semibold ${isComplete ? 'text-green-700' : isLocked ? 'text-slate-400' : 'text-amber-700'}`}>{item.count}</span>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -170,7 +218,17 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
               {appraisalQueue.map(a => (
                 <button
                   key={a.id}
-                  onClick={() => { setSelected(a.id); setAppraisalStep('verification'); setActiveMemberVerified(false); setKycVerified(false); }}
+                  onClick={() => { 
+                    setSelected(a.id); 
+                    setDecisionStatus(null);
+                    const nextStep = a.status === 'reference_generated' ? 'verification' : a.status === 'appraisal_pending' ? 'appraisal' : 'submitted';
+                    setAppraisalStep(nextStep); 
+                    setActiveMemberVerified(a.status !== 'reference_generated'); 
+                    setActiveMemberRelaxationRecorded(false);
+                    const kycStatus = members.find(m => m.id === a.memberId)?.kycStatus;
+                    setKycVerified(a.status !== 'reference_generated' || kycStatus === 'verified');
+                    setRiskRating(a.isException ? 'high' : 'low');
+                  }}
                   className={`w-full flex items-center gap-3 p-4 hover:bg-slate-50 transition-colors text-left ${
                     selected === a.id ? 'bg-green-50 ring-1 ring-inset ring-green-200' : ''
                   }`}
@@ -182,12 +240,7 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <StatusBadge 
-                      label={
-                        a.status === 'reference_generated' ? 'verification_pending' : 
-                        a.status === 'appraisal_pending' ? 'appraisal_draft_pending' : 
-                        a.status === 'credit_review' ? 'credit_review_pending' : 
-                        a.status
-                      } 
+                      label={formatBadge(a.status)} 
                       size="sm" 
                     />
                     {a.isException && (
@@ -217,7 +270,7 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
                     <p className="text-sm text-slate-500">{app.memberName} · {fmt(app.requestedAmount)}</p>
                   </div>
                   <button onClick={() => onOpenApplication(app.id)} className="text-xs text-green-600 hover:underline flex items-center gap-1">
-                    Full view <ChevronRight size={12} />
+                    Open full application <ChevronRight size={12} />
                   </button>
                 </div>
 
@@ -229,11 +282,10 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
               {/* ── STEP 1: Verification (S16 + S17) ── */}
               {(appraisalStep === 'verification') && (
                 <div className="space-y-4">
-                  {/* Role guidance */}
-                  <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-700">
-                    <Info size={14} className="flex-shrink-0" />
-                    <span><strong>Step 1:</strong> Deputy Manager – Finance must complete Active Member Verification and KYC Verification before appraisal can proceed.</span>
-                  </div>
+                  {(!activeMemberVerified || !kycVerified) && (
+                    <AlertBanner type="warning" title="Verification Incomplete"
+                      message="Complete active-member and KYC verification before appraisal." />
+                  )}
 
                   {/* S16: Active Member Verification */}
                   <div className="card">
@@ -267,7 +319,7 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
 
                     <textarea
                       rows={2}
-                      placeholder={member?.supplyYears !== undefined && member.supplyYears < 4 ? "Enter relaxation reason/evidence (required for 4-year rule failure)..." : "Verification note — confirm supply records, relaxation applied (if any), subsidiary linkage…"}
+                      placeholder={member?.supplyYears !== undefined && member.supplyYears < 4 ? "Enter relaxation reason and attach evidence" : "Verification note — confirm supply records, relaxation applied (if any), subsidiary linkage…"}
                       value={activeMemberNote}
                       onChange={e => setActiveMemberNote(e.target.value)}
                       className="field-input text-sm resize-none mb-3"
@@ -289,16 +341,16 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
                           <span>4-year supply rule not met. Record approved relaxation before appraisal.</span>
                         </div>
                         <button
-                          onClick={() => setActiveMemberVerified(true)}
-                          disabled={activeMemberVerified || !activeMemberNote.trim()}
+                          onClick={handleRecordRelaxation}
+                          disabled={activeMemberVerified || activeMemberRelaxationRecorded || !activeMemberNote.trim()}
                           className={`flex items-center gap-2 text-sm px-4 py-2 rounded-lg font-medium transition-colors ${
-                            activeMemberVerified
-                              ? 'bg-green-50 text-green-700 border border-green-200'
+                            activeMemberVerified || activeMemberRelaxationRecorded
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
                               : 'bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed'
                           }`}
                         >
-                          <CheckCircle2 size={14} />
-                          {activeMemberVerified ? 'Active Status Verified ✓' : 'Verify with relaxation'}
+                          {activeMemberVerified ? <CheckCircle2 size={14} /> : <Clock size={14} />}
+                          {activeMemberVerified ? 'Active Status Verified ✓' : activeMemberRelaxationRecorded ? 'Relaxation approval pending' : 'Record relaxation evidence'}
                         </button>
                       </div>
                     ) : (
@@ -334,7 +386,7 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
                     {member && (
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
                         {[
-                          { label: 'KYC Status', value: member.kycStatus.replace(/_/g, ' '), highlight: member.kycStatus !== 'verified' },
+                          { label: 'KYC Status', value: member.kycStatus === 'verified' ? 'Verified' : 'Pending confirmation', highlight: member.kycStatus !== 'verified' },
                           { label: 'PAN', value: '**-***-****' },
                           { label: 'Aadhaar', value: '****-****-****' },
                           { label: 'CKYC Ref', value: member.kycStatus === 'verified' ? 'On Record' : 'Pending' },
@@ -384,28 +436,24 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
                     ) : member?.kycStatus !== 'verified' ? (
                       <AlertBanner type="warning" title="KYC Not Verified"
                         message="Member KYC must be verified before appraisal can proceed. Initiate re-KYC if needed." />
-                    ) : kycVerified ? (
-                      <div className="flex gap-3">
-                        <button
-                          disabled
-                          className="flex items-center gap-2 text-sm px-4 py-2 rounded-lg font-medium bg-green-50 text-green-700 border border-green-200"
-                        >
-                          <CheckCircle2 size={14} />
-                          KYC Verified ✓
-                        </button>
+                    ) : (member?.kycStatus === 'verified' && kycVerified) ? (
+                      <div className="flex gap-3 items-center justify-between mt-4 pt-4 border-t border-slate-100">
+                        <span className="text-xs text-slate-500">KYC verified · 15/6/2026 · {currentUser.name}</span>
                         <button className="flex items-center gap-2 text-sm px-4 py-2 rounded-lg font-medium bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-700 transition-colors">
                           View KYC evidence
                         </button>
                       </div>
                     ) : (
-                      <button
-                        onClick={() => setKycVerified(true)}
-                        disabled={kycVerified}
-                        className="flex items-center gap-2 text-sm px-4 py-2 rounded-lg font-medium transition-colors bg-green-600 hover:bg-green-700 text-white"
-                      >
-                        <CheckCircle2 size={14} />
-                        Confirm KYC Verification
-                      </button>
+                      (can('do_completeness_check') || can('manage_compliance')) && (
+                        <button
+                          onClick={() => setKycVerified(true)}
+                          disabled={kycVerified}
+                          className="flex items-center gap-2 text-sm px-4 py-2 rounded-lg font-medium transition-colors bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          <CheckCircle2 size={14} />
+                          Confirm KYC Verification
+                        </button>
+                      )
                     )}
                   </div>
 
@@ -425,7 +473,7 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
                           : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                       }`}
                     >
-                      Proceed to Appraisal <ArrowRight size={16} />
+                      {canProceedToAppraisal ? 'Proceed to Appraisal' : 'Complete verification first'} <ArrowRight size={16} />
                     </button>
                   </div>
                 </div>
@@ -436,7 +484,7 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 bg-green-50 border border-green-100 rounded-xl p-3 text-xs text-green-700">
                     <CheckCircle2 size={14} className="flex-shrink-0" />
-                    <span><strong>Step 2: Appraise.</strong> Verification complete. Prepare the Loan Appraisal Note with recommendation, risk rationale, bank observations, security and conditions precedent.</span>
+                    <span><strong>Step 2: Prepare appraisal note.</strong> Add recommendation, risk rationale, repayment observations, security and conditions.</span>
                   </div>
 
                   {/* Loan limit */}
@@ -495,7 +543,7 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
                         </h3>
                         <p className="text-xs text-slate-500 mt-1">These fields make Step 2 functional and feed the Credit Manager review.</p>
                       </div>
-                      <StatusBadge label={canForwardToSanction ? 'complete' : 'in_progress'} size="sm" />
+                      <StatusBadge label={canForwardToSanction ? 'complete' : 'Draft incomplete'} size="sm" />
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
@@ -503,12 +551,19 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
                         <input
                           type="number"
                           value={recommendedAmount}
-                          onChange={e => { setRecommendedAmount(e.target.value); setAppraisalDraftSaved(false); }}
+                          onChange={e => { 
+                            const val = Number(e.target.value);
+                            setRecommendedAmount(e.target.value); 
+                            if (val > (app?.eligibleAmount || 0) && recommendation !== 'exception' && recommendation !== 'reject') {
+                              setRecommendation('exception');
+                            }
+                            setAppraisalDraftSaved(false); 
+                          }}
                           className="field-input"
-                          placeholder={String(app.eligibleAmount)}
+                          placeholder={String(app?.eligibleAmount)}
                         />
-                        {recommendedAmountNumber > app.eligibleAmount && (
-                          <p className="text-xs text-amber-600 mt-1">Above eligible amount. Exception route will be required.</p>
+                        {recommendedAmountNumber > (app?.eligibleAmount || 0) && (
+                          <p className="text-xs text-amber-600 mt-1">Requested amount exceeds eligible limit by {fmt(recommendedAmountNumber - (app?.eligibleAmount || 0))}.</p>
                         )}
                       </div>
                       <div>
@@ -528,10 +583,19 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
                           onChange={e => { setRecommendation(e.target.value as typeof recommendation); setAppraisalDraftSaved(false); }}
                           className="field-select"
                         >
-                          <option value="approve">Approve</option>
-                          <option value="approve_conditions">Approve with conditions</option>
-                          <option value="exception">Exception required</option>
-                          <option value="reject">Reject at credit assessment</option>
+                          {recommendedAmountNumber > (app?.eligibleAmount || 0) ? (
+                            <>
+                              <option value="exception">Exception approval required</option>
+                              <option value="reject">Reject at credit assessment</option>
+                            </>
+                          ) : (
+                            <>
+                              <option value="approve">Standard approval</option>
+                              <option value="approve_conditions">Approve with conditions</option>
+                              <option value="exception">Exception approval required</option>
+                              <option value="reject">Reject at credit assessment</option>
+                            </>
+                          )}
                         </select>
                       </div>
                       <div>
@@ -597,10 +661,11 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
                       </button>
                       <button
                         onClick={() => setAppraisalDraftSaved(true)}
-                        className="btn-secondary text-sm flex items-center gap-2"
+                        disabled={!canForwardToSanction}
+                        className={`text-sm flex items-center gap-2 ${canForwardToSanction ? 'btn-secondary' : 'bg-slate-100 text-slate-400 px-4 py-2 rounded-lg cursor-not-allowed border border-transparent'}`}
                       >
                         <FileDown size={14} />
-                        Generate Appraisal PDF
+                        {appraisalStep === 'submitted' ? 'Generate Appraisal PDF' : 'Generate Draft PDF'}
                       </button>
                     </div>
                   </div>
@@ -629,19 +694,19 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
                       </button>
                       <div className="flex gap-3">
                         <button className="btn-secondary text-sm" onClick={() => onOpenApplication(app.id)}>
-                          View Full Application
+                          Open full application
                         </button>
-                        {can('do_appraisal') ? (
+                        {allowedToPrepareAppraisal ? (
                           <button
-                            className="btn-primary text-sm disabled:opacity-50"
+                            className={`text-sm flex items-center gap-2 px-4 py-2 rounded-lg font-semibold transition-colors ${canForwardToSanction ? 'bg-green-600 hover:bg-green-700 text-white shadow-sm' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
                             disabled={!canForwardToSanction}
                             onClick={() => setAppraisalStep('submitted')}
                           >
-                            Continue to Forward →
+                            {canForwardToSanction ? 'Submit to Credit Manager' : 'Complete appraisal first'}
                           </button>
                         ) : (
-                          <button className="btn-primary text-sm opacity-50 cursor-not-allowed" disabled title="Deputy Manager Finance or Credit Manager only">
-                            Continue to Forward →
+                          <button className="bg-slate-100 text-slate-400 px-4 py-2 rounded-lg text-sm font-semibold opacity-50 cursor-not-allowed" disabled title="Deputy Manager Finance or Credit Manager only">
+                            Submit to Credit Manager
                           </button>
                         )}
                       </div>
@@ -664,7 +729,7 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-700">
                     <Send size={14} className="flex-shrink-0" />
-                    <span><strong>Step 3: Forward.</strong> Review the appraisal package, capture Credit Manager comment, then forward to Sanction Committee or return/reject with reason.</span>
+                    <span><strong>Step 3: Credit Manager review.</strong> Review appraisal package, record decision reason, then forward, return, or reject.</span>
                   </div>
 
                   <div className="card">
@@ -691,13 +756,17 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
                       ))}
                     </div>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-                      <div className="rounded-lg border border-slate-100 p-3">
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Risk Rationale</p>
-                        <p className="text-sm text-slate-700 mt-2 whitespace-pre-wrap">{riskRationale}</p>
+                      <div className={`rounded-lg border p-3 ${!riskRationale.trim() ? 'border-red-100 bg-red-50' : 'border-slate-100'}`}>
+                        <p className={`text-xs font-semibold uppercase tracking-wide ${!riskRationale.trim() ? 'text-red-700' : 'text-slate-500'}`}>Risk Rationale</p>
+                        <p className={`text-sm mt-2 whitespace-pre-wrap ${!riskRationale.trim() ? 'text-red-600 font-medium' : 'text-slate-700'}`}>
+                          {riskRationale.trim() ? riskRationale : 'Risk rationale missing'}
+                        </p>
                       </div>
-                      <div className="rounded-lg border border-slate-100 p-3">
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Bank / Repayment Observations</p>
-                        <p className="text-sm text-slate-700 mt-2 whitespace-pre-wrap">{bankObservation}</p>
+                      <div className={`rounded-lg border p-3 ${!bankObservation.trim() ? 'border-red-100 bg-red-50' : 'border-slate-100'}`}>
+                        <p className={`text-xs font-semibold uppercase tracking-wide ${!bankObservation.trim() ? 'text-red-700' : 'text-slate-500'}`}>Bank / Repayment Observations</p>
+                        <p className={`text-sm mt-2 whitespace-pre-wrap ${!bankObservation.trim() ? 'text-red-600 font-medium' : 'text-slate-700'}`}>
+                          {bankObservation.trim() ? bankObservation : 'Bank / repayment observations missing'}
+                        </p>
                       </div>
                     </div>
                     {conditionsPrecedent && (
@@ -708,71 +777,107 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
                     )}
                   </div>
 
-                  <div className="card">
-                    <h3 className="text-sm font-semibold text-slate-700 mb-3">Credit Manager Decision</h3>
-                    <textarea
-                      rows={4}
-                      value={creditManagerComment}
-                      onChange={e => setCreditManagerComment(e.target.value)}
-                      placeholder="Mandatory for rejection, return for correction, exception routing, or recommended amount differing from eligible amount."
-                      className="field-input resize-none mb-4"
-                    />
-                    <div className="flex flex-wrap gap-3">
-                      <button
-                        onClick={() => setAppraisalStep('appraisal')}
-                        className="btn-secondary text-sm flex items-center gap-2"
-                      >
-                        <RotateCcw size={14} />
-                        Return to Appraise
-                      </button>
-                      {can('do_completeness_check') ? (
-                        <>
+                  {!decisionStatus ? (
+                    <>
+                      <div className="card">
+                        <h3 className="text-sm font-semibold text-slate-700 mb-3">Credit Manager Decision</h3>
+                        <textarea
+                          rows={4}
+                          value={creditManagerComment}
+                          onChange={e => setCreditManagerComment(e.target.value)}
+                          placeholder="Mandatory for rejection, return for correction, exception routing, or recommended amount differing from eligible amount."
+                          className="field-input resize-none mb-4"
+                        />
+                        {(!riskRationale.trim() || !bankObservation.trim() || !noteText.trim()) && (
+                           <div className="mb-4">
+                             <AlertBanner type="error" title="Appraisal package incomplete" message="Return to appraisal before forwarding." />
+                           </div>
+                        )}
+                        <div className="flex flex-wrap gap-3">
                           <button
                             disabled={!creditManagerComment.trim()}
-                            className="bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-4 py-2 rounded-lg transition-colors text-sm flex items-center gap-2"
+                            onClick={() => {
+                              console.log({ action: 'RETURNED', actor: currentUser.role, time: new Date().toISOString(), reason: creditManagerComment, app: app.id });
+                              setDecisionStatus('returned');
+                            }}
+                            className="btn-secondary text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            <RefreshCw size={14} />
-                            Request Correction
+                            <RotateCcw size={14} />
+                            Return to appraisal
                           </button>
-                          <button
-                            disabled={recommendation === 'reject' && !creditManagerComment.trim()}
-                            className="bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-4 py-2 rounded-lg transition-colors text-sm flex items-center gap-2"
-                          >
-                            <XCircle size={14} />
-                            Reject
-                          </button>
-                          <button
-                            disabled={(requiresException || recommendedAmountNumber !== app.eligibleAmount) && !creditManagerComment.trim()}
-                            className="btn-primary text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            <Send size={14} />
-                            {requiresException ? 'Forward Exception to Sanction Committee' : 'Forward to Sanction Committee'}
-                          </button>
-                        </>
-                      ) : (
-                        <div className="text-sm text-amber-700 bg-amber-50 p-2 rounded border border-amber-200 ml-auto">
-                          Waiting for Credit Manager review and forwarding.
+                          {can('do_completeness_check') ? (
+                            <>
+                              <button
+                                disabled={!creditManagerComment.trim()}
+                                onClick={() => {
+                                  console.log({ action: 'REJECTED', actor: currentUser.role, time: new Date().toISOString(), reason: creditManagerComment, app: app.id });
+                                  setDecisionStatus('rejected');
+                                }}
+                                className="bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-4 py-2 rounded-lg transition-colors text-sm flex items-center gap-2"
+                              >
+                                <XCircle size={14} />
+                                Reject
+                              </button>
+                              <button
+                                disabled={!creditManagerComment.trim() || !riskRationale.trim() || !bankObservation.trim() || !noteText.trim() || !recommendedAmountNumber || (requiresException && recommendation !== 'exception')}
+                                onClick={() => {
+                                  console.log({ action: 'FORWARDED', actor: currentUser.role, time: new Date().toISOString(), reason: creditManagerComment, app: app.id, exception: requiresException });
+                                  setDecisionStatus('forwarded');
+                                }}
+                                className="btn-primary text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ml-auto"
+                              >
+                                <Send size={14} />
+                                Forward to Sanction Committee
+                              </button>
+                            </>
+                          ) : (
+                            <div className="text-sm text-amber-700 bg-amber-50 p-2 rounded border border-amber-200 ml-auto">
+                              Waiting for Credit Manager review and forwarding.
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <div className="mt-4 text-xs text-slate-500">
-                      Forwarding preserves the appraisal note, risk rationale, recommended amount, conditions and document evidence for audit.
-                    </div>
-                  </div>
+                        {requiresException && (
+                          <div className="mt-3 text-xs text-violet-600 font-medium flex justify-end">
+                            Exception approval required
+                          </div>
+                        )}
+                        <div className="mt-4 text-xs text-slate-500">
+                          Forwarding preserves the appraisal note, risk rationale, recommended amount, conditions and document evidence for audit.
+                        </div>
+                      </div>
 
-                  <div className="card text-center py-8">
-                    <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-                      <Check size={28} className="text-green-600" />
+                      <div className="card text-center py-8">
+                        <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                          <Check size={28} className="text-slate-400" />
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-900">Ready for Credit Manager review</h3>
+                        <p className="text-sm text-slate-500 mt-2">
+                          Complete review decision to move this case forward.
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="card text-center py-8">
+                      <div className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                        decisionStatus === 'forwarded' ? 'bg-green-100' :
+                        decisionStatus === 'rejected' ? 'bg-red-100' : 'bg-amber-100'
+                      }`}>
+                        {decisionStatus === 'forwarded' ? <Check size={28} className="text-green-600" /> :
+                         decisionStatus === 'rejected' ? <XCircle size={28} className="text-red-600" /> : <RotateCcw size={28} className="text-amber-600" />}
+                      </div>
+                      <h3 className="text-lg font-bold text-slate-900">
+                        {decisionStatus === 'forwarded' ? 'Forwarded to Sanction Committee' :
+                         decisionStatus === 'rejected' ? 'Rejected' : 'Returned to appraisal'}
+                      </h3>
+                      <p className="text-sm text-slate-500 mt-2">
+                        {decisionStatus === 'forwarded' ? `${app.applicationNumber} was forwarded ${requiresException ? 'with exception route' : 'for standard sanction'}.` :
+                         `Action completed by ${currentUser.role.replace(/_/g, ' ')}.`}
+                      </p>
+                      <div className="flex gap-3 justify-center mt-6">
+                        <button onClick={() => { setSelected(appraisalQueue.find(a => a.id !== selected)?.id || null); setAppraisalStep('verification'); }} className="btn-secondary text-sm">Next in Queue</button>
+                      </div>
                     </div>
-                    <h3 className="text-lg font-bold text-slate-900">Step 3 Ready</h3>
-                    <p className="text-sm text-slate-500 mt-2">
-                      {app.applicationNumber} is ready for Credit Manager action.
-                    </p>
-                    <div className="flex gap-3 justify-center mt-6">
-                      <button onClick={() => onOpenApplication(app.id)} className="btn-secondary text-sm">View Application</button>
-                      <button onClick={() => { setSelected(appraisalQueue.find(a => a.id !== selected)?.id || null); setAppraisalStep('verification'); }} className="btn-secondary text-sm">Next in Queue</button>
-                    </div>
-                  </div>
+                  )}
                 </div>
               )}
             </div>
