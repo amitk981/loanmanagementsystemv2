@@ -50,7 +50,7 @@ const TatChip: React.FC<{ daysRemaining: number | undefined; referenceGeneratedA
 
 const formatBadge = (status: string) => {
   if (status === 'reference_generated') return 'Verification pending';
-  if (status === 'appraisal_in_progress') return 'Application Complete / Appraisal In Progress';
+  if (status === 'appraisal_in_progress') return 'Appraisal In Progress';
   if (status === 'appraisal_pending') return 'Appraisal draft pending';
   if (status === 'pending_credit_manager_review' || status === 'credit_review') return 'Pending Credit Manager Review';
   return status.replace(/_/g, ' ');
