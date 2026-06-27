@@ -22,9 +22,10 @@ import { getApplicationReference, getApplicationStatusLabel, hasFormalLoanRefere
 const fmt = (n: number) => '₹' + n.toLocaleString('en-IN');
 
 const STAGE_MAP: Record<string, number> = {
-  draft: 0, submitted: 0, incomplete: 0, deficiency_raised: 0,
-  returned_for_rectification: 0, completeness_check: 0, rejected_completeness: 0,
-  reference_generated: 1, appraisal_in_progress: 2, appraisal_pending: 2,
+  draft: 0, 
+  submitted: 1, incomplete: 1, deficiency_raised: 1,
+  returned_for_rectification: 1, completeness_check: 1, rejected_completeness: 1,
+  reference_generated: 2, appraisal_in_progress: 2, appraisal_pending: 2,
   pending_credit_manager_review: 2, credit_review: 2,
   pending_sanction_committee_approval: 3, pending_sanction: 3,
   under_sanction_review: 3, clarification_requested: 3,
@@ -167,6 +168,8 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
   if (isLO35 && docsPending) {
     computedOwner = 'Compliance Team / Company Secretary';
     nextAction = 'Clear documentation blockers';
+  } else if (stageIndex < 4) {
+    computedOwner = app.currentOwner;
   } else if (app.documentationStatus === 'in_progress' || app.documentationStatus === 'documentation_in_progress' || app.documentationStatus === 'not_started') {
     computedOwner = 'Compliance Team';
   } else if (app.documentationStatus === 'pending_signature') {
@@ -398,7 +401,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                       <ClipboardList size={16} className="text-green-600" /> Application Completeness Check
                     </h3>
                     {isInCompletenessReview && canEditCompleteness ? (
-                      <p className="text-xs text-amber-700 mt-0.5 font-medium">In review — {reviewedCount} of {reviewableItems.length} items checked · Use Pass / Flag buttons on each item</p>
+                      <p className="text-xs text-amber-700 mt-0.5 font-medium">In review — {reviewedCount} of {reviewableItems.length} items reviewed · Use Pass / Flag buttons on each item</p>
                     ) : (
                       <p className="text-xs text-slate-500 mt-0.5">Performed by: Deputy Manager – Finance · {reviewableItems.length}/{reviewableItems.length} items reviewed</p>
                     )}
@@ -415,7 +418,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                       <p className="text-lg font-bold text-green-700">{passedCount}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs text-slate-400">Deficiency</p>
+                      <p className="text-xs text-slate-400">Deficient</p>
                       <p className="text-lg font-bold text-red-600">{deficiencyCount}</p>
                     </div>
                   </div>
@@ -447,6 +450,46 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                     const isNa = item.id === 'share_certificate' && app.shareMode !== 'physical';
                     const status = isNa ? 'na' : getItemStatus(item.id);
 
+                    let evidence: React.ReactNode = null;
+                    if (!isNa) {
+                      switch (item.id) {
+                        case 'folio_number': evidence = member?.folioNumber ? `Folio ${member.folioNumber}` : null; break;
+                        case 'shares_present': evidence = `${app.sharesHeld} shares · ${app.shareMode === 'physical' ? 'Physical' : 'Demat'}`; break;
+                        case 'active_member': evidence = member?.activeStatus === 'active' ? 'Active member' : 'Not an active member'; break;
+                        case 'loan_purpose': evidence = app.purpose === 'crop_production' || app.purpose === 'agriculture_activity' ? 'Crop production' : app.purpose.replace(/_/g, ' '); break;
+                        case 'existing_default': evidence = member?.defaultStatus === 'no_default' ? 'No existing defaults' : 'Existing default found'; break;
+                        case 'loan_amount': evidence = `₹${app.requestedAmount.toLocaleString('en-IN')} requested`; break;
+                        case 'nominee_fields': evidence = app.nomineeId ? `Nominee ref: ${app.nomineeId}` : null; break;
+                        case 'nominee_age': evidence = "Not minor (from docs)"; break;
+                        case 'applicant_signature':
+                        case 'nominee_signature': evidence = "Physical form verified"; break;
+                        case 'borrower_kyc':
+                        case 'nominee_kyc':
+                        case 'land_712':
+                        case 'crop_plan':
+                        case 'bank_statement':
+                          const requiredDocs = item.id === 'borrower_kyc' ? ['pan', 'aadhaar'] :
+                                               item.id === 'nominee_kyc' ? ['nominee_pan', 'nominee_aadhaar'] :
+                                               item.id === 'land_712' ? ['land_712'] :
+                                               item.id === 'crop_plan' ? ['crop_plan'] :
+                                               ['bank_statement'];
+                          evidence = (
+                            <div className="flex gap-1.5 flex-wrap mt-1">
+                              {requiredDocs.map(dtype => {
+                                const doc = appDocs.find(d => d.documentType === dtype);
+                                const isUploaded = doc && ['uploaded', 'verified', 'complete', 'under_review', 'signed'].includes(doc.status);
+                                return (
+                                  <span key={dtype} className={`text-[10px] px-1.5 py-0.5 rounded font-medium border ${isUploaded ? 'bg-slate-50 border-slate-200 text-slate-600' : 'bg-red-50 border-red-200 text-red-600'}`}>
+                                    {dtype.replace(/_/g, ' ')} {isUploaded ? 'uploaded' : 'missing'}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          );
+                          break;
+                      }
+                    }
+
                     return (
                       <div key={item.id} className={`px-5 py-3 ${status === 'deficiency' ? 'bg-red-50' : status === 'passed' ? 'bg-green-50/40' : ''}`}>
                         <div className="flex items-start gap-3">
@@ -455,6 +498,7 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                               <span className="text-sm font-medium text-slate-800">{displayLabel}</span>
                               {!item.required && <span className="text-xs text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">Optional</span>}
                             </div>
+                            {evidence && <div className="mt-1 text-xs font-medium text-slate-600">{evidence}</div>}
                             {status === 'deficiency' && (
                               <>
                                 <p className="text-xs text-red-600 mt-1 font-medium">{item.deficiencyReason}</p>
@@ -469,8 +513,11 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                                 )}
                               </>
                             )}
-                            {status === 'pending' && canEditCompleteness && (
+                            {status === 'pending' && canEditCompleteness && !evidence && (
                               <p className="text-xs text-slate-400 mt-0.5">Not yet reviewed</p>
+                            )}
+                            {status === 'pending' && canEditCompleteness && evidence && (
+                              <p className="text-xs text-amber-600 mt-1 italic">Review required</p>
                             )}
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0 pt-0.5">
@@ -502,8 +549,9 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                                   <button
                                     onClick={() => markDeficiency(item.id)}
                                     className="text-xs px-2.5 py-1 rounded border border-red-200 text-red-600 bg-white hover:bg-red-50 font-medium transition-colors flex items-center gap-1"
+                                    title="Flag deficiency"
                                   >
-                                    <AlertTriangle size={11} /> Flag
+                                    <AlertTriangle size={11} /> <span className="hidden sm:inline">Flag deficiency</span><span className="sm:hidden">Flag</span>
                                   </button>
                                 </div>
                               ) : (
@@ -556,33 +604,41 @@ const ApplicationDetail: React.FC<ApplicationDetailProps> = ({
                           <div className="flex items-center gap-2 text-sm font-medium text-amber-700 bg-amber-100 border border-amber-200 rounded-lg px-3 py-2">
                             <CheckCircle2 size={14} /> Deficiency notice sent to borrower · {new Date().toLocaleDateString('en-IN')}
                           </div>
-                        ) : (
-                          <button
-                            onClick={() => setDeficiencyNoticeSent(true)}
-                            className="text-sm font-medium px-4 py-2 rounded-lg border border-amber-300 bg-amber-100 text-amber-800 hover:bg-amber-200 transition-colors flex items-center gap-2"
-                          >
-                            <MessageSquare size={14} /> Send Deficiency Notice to Borrower
-                          </button>
-                        )}
+                        ) : null}
                       </div>
                     )}
 
-                    {pendingItems.length === 0 && !hasDeficiencies && !completenessSubmitted && (
-                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                        <p className="text-sm font-semibold text-green-800 mb-3 flex items-center gap-2">
-                          <CheckCircle2 size={15} /> All items reviewed — no deficiencies
-                        </p>
+                    <div className="flex flex-col items-end gap-2 border-t border-slate-100 pt-4 mt-4">
+                      <div className="flex items-center gap-3 flex-wrap">
                         <button
+                          disabled={!allRequiredPassed || hasDeficiencies || completenessSubmitted}
                           onClick={() => setCompletenessSubmitted(true)}
-                          className="btn-primary text-sm flex items-center gap-2"
+                          className="btn-primary flex items-center gap-2"
                         >
-                          <ArrowRight size={14} /> Pass Completeness &amp; Generate Reference
+                          <ArrowRight size={14} /> Generate loan reference
+                        </button>
+                        <button
+                          disabled={!hasDeficiencies || !completenessNote.trim() || completenessSubmitted || deficiencyNoticeSent}
+                          onClick={() => setDeficiencyNoticeSent(true)}
+                          className="btn-secondary flex items-center gap-2"
+                          title={!completenessNote.trim() ? "Internal comment required" : ""}
+                        >
+                          <Send size={14} /> Return for deficiency
+                        </button>
+                        <button
+                          disabled={!completenessNote.trim() || completenessSubmitted || hasDeficiencies}
+                          onClick={() => alert("Rejection recommended")}
+                          className="btn-destructive flex items-center gap-2"
+                          title={hasDeficiencies ? "Use Return for Deficiency for missing items" : !completenessNote.trim() ? "Reason required" : ""}
+                        >
+                          <XCircle size={14} /> Recommend rejection
                         </button>
                       </div>
-                    )}
+                      {!allRequiredPassed && !hasDeficiencies && <span className="text-[10px] text-slate-400 font-medium">Complete all mandatory checks before generating the loan reference.</span>}
+                    </div>
 
                     {completenessSubmitted && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 mt-4 pt-4 border-t border-slate-100">
                         <span className="text-sm font-medium text-green-700 bg-green-50 px-4 py-2 rounded-lg flex items-center gap-2 border border-green-200">
                           <CheckCircle2 size={16} /> {hasFormalLoanReference(app) ? `Reference generated · ${getApplicationReference(app)}` : 'Reference generated'}
                         </span>

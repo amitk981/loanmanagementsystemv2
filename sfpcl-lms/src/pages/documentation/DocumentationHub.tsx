@@ -11,6 +11,7 @@ import AuditTimeline from '../../components/loan/AuditTimeline';
 import Tabs from '../../components/ui/Tabs';
 import { documents, loanApplications, securities, auditEvents } from '../../data/mockData';
 import { useRole, type Permission } from '../../contexts/RoleContext';
+import DocumentPackModal from '../../components/loan/DocumentPackModal';
 
 const fmt = (n: number) => '₹' + n.toLocaleString('en-IN');
 
@@ -99,6 +100,7 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
   const [approvalCondition, setApprovalCondition] = useState('');
   const [completedLegalActions, setCompletedLegalActions] = useState<string[]>([]);
   const [activeTabIndex, setActiveTabIndex] = useState(0);
+  const [isDocumentPackOpen, setIsDocumentPackOpen] = useState(false);
 
   const { can, currentUser } = useRole();
 
@@ -458,7 +460,7 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
                   >
                     <FolderOpen size={16} className="text-amber-500 flex-shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
+                      <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1.5">
                         <div className="font-semibold text-slate-900 num text-sm truncate">{a.applicationNumber}</div>
                         <StatusBadge label={qs.ready ? 'disbursement_ready' : a.documentationStatus} size="sm" />
                       </div>
@@ -498,11 +500,11 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
                   </div>
                   <div className="flex flex-wrap gap-2 self-start">
                     <button
-                      className="btn-secondary text-xs disabled:opacity-50"
-                      disabled={isReadOnly || !mandatoryChecklistClear}
-                      title={isReadOnly ? 'Read-only role' : !mandatoryChecklistClear ? 'Locked — clear checklist blockers' : undefined}
+                      className="btn-secondary flex items-center gap-2 flex-shrink-0"
+                      onClick={() => setIsDocumentPackOpen(true)}
                     >
-                      {completedLegalCount > 0 ? (signatureMismatch ? 'Regenerate Document Pack' : 'View Document Pack') : 'Generate Document Pack'}
+                      <FolderOpen size={14} />
+                      View Document Pack
                     </button>
                     <button onClick={() => onOpenApplication(app.id)} className="btn-secondary flex items-center gap-2 flex-shrink-0">
                       <FileText size={14} /> Full Application
@@ -932,6 +934,15 @@ const DocumentationHub: React.FC<DocumentationHubProps> = ({ onOpenApplication, 
             </div>
           )}
         </div>
+      )}
+
+      {/* Modals */}
+      {app && (
+        <DocumentPackModal
+          isOpen={isDocumentPackOpen}
+          onClose={() => setIsDocumentPackOpen(false)}
+          app={app}
+        />
       )}
     </div>
   );

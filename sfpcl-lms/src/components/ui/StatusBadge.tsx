@@ -173,7 +173,7 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ label, family, size = 'md', d
   const icon = familyIcons[resolvedFamily];
 
   return (
-    <span className={`inline-flex items-center gap-1 font-medium rounded-full border ${styles.bg} ${styles.text} ${styles.border} ${sizeStyles[size]}`}>
+    <span className={`inline-flex items-center gap-1 font-medium rounded-full border whitespace-nowrap ${styles.bg} ${styles.text} ${styles.border} ${sizeStyles[size]}`}>
       {dot ? (
         <span className={`w-1.5 h-1.5 rounded-full ${resolvedFamily === 'approved' ? 'bg-green-600' : resolvedFamily === 'rejected' || resolvedFamily === 'blocked' ? 'bg-red-500' : resolvedFamily === 'exception' ? 'bg-violet-600' : resolvedFamily === 'closed' || resolvedFamily === 'teal' ? 'bg-teal-600' : 'bg-amber-500'}`} />
       ) : icon}

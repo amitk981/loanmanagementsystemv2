@@ -114,6 +114,17 @@ const CompletenessWorkbench: React.FC<CompletenessWorkbenchProps> = ({
   const allComplete = reviewableItems.length > 0 && pendingItems.length === 0 && deficientItems.length === 0;
   const hasDeficiencies = deficientItems.length > 0;
 
+  const readyAppsCount = useMemo(() => {
+    return queue.filter(a => {
+      if (a.id === selectedId) return allComplete;
+      const c = getInitialChecks(a.id, a.shareMode);
+      return COMPLETENESS_ITEMS.every(item => {
+        if (item.id === 'share_certificate' && a.shareMode !== 'physical') return true;
+        return c[item.id] === 'complete';
+      });
+    }).length;
+  }, [queue, selectedId, allComplete]);
+
   const markItem = (id: string, state: CheckState) => {
     if (!canAct) return;
     setChecks(prev => ({ ...prev, [id]: state }));
@@ -149,17 +160,37 @@ const CompletenessWorkbench: React.FC<CompletenessWorkbenchProps> = ({
       case 'loan_amount':
         return {
           type: 'field',
-          value: `${fmt(app.requestedAmount)} requested · Eligible: ${fmt(app.eligibleAmount)}`,
+          value: `Requested amount captured · ${fmt(app.requestedAmount)}`,
           ok: app.requestedAmount > 0,
+        };
+      case 'active_member':
+        return {
+          type: 'field',
+          value: member?.activeStatus === 'active' ? 'Active member' : 'Not an active member',
+          ok: member?.activeStatus === 'active',
+        };
+      case 'loan_purpose':
+        return {
+          type: 'field',
+          value: app.purpose === 'crop_production' || app.purpose === 'agriculture_activity' ? 'Agriculture / Crop production' : app.purpose.replace(/_/g, ' '),
+          ok: app.purpose === 'crop_production' || app.purpose === 'agriculture_activity',
+        };
+      case 'existing_default':
+        return {
+          type: 'field',
+          value: member?.defaultStatus === 'no_default' ? 'No existing defaults' : 'Existing default found',
+          ok: member?.defaultStatus === 'no_default',
         };
       case 'nominee_signature':
         return { type: 'manual', hint: "Verify nominee's physical signature is present on the submitted application form." };
       case 'nominee_fields':
         return {
           type: 'field',
-          value: `Nominee ref: ${app.nomineeId} — verify name, age, Aadhaar, PAN, and gender on physical form`,
+          value: `Nominee ref: ${app.nomineeId} — verify name, Aadhaar, PAN, and gender on physical form`,
           ok: !!app.nomineeId,
         };
+      case 'nominee_age':
+        return { type: 'manual', hint: "Verify nominee is not a minor from submitted documents." };
       case 'borrower_kyc':
         return { type: 'docs', docs: [{ label: 'Borrower PAN', docType: 'pan' }, { label: 'Borrower Aadhaar', docType: 'aadhaar' }] };
       case 'nominee_kyc':
@@ -196,7 +227,7 @@ const CompletenessWorkbench: React.FC<CompletenessWorkbenchProps> = ({
         <div>
           <h1 className="text-xl font-bold text-slate-900">Application Completeness Check</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            S12 review by Deputy Manager - Finance · {queue.length} application{queue.length !== 1 ? 's' : ''} awaiting completeness decision
+            S1–S2 review by Deputy Manager – Finance · {queue.length} application{queue.length !== 1 ? 's' : ''} awaiting completeness decision
           </p>
         </div>
       </div>
@@ -209,10 +240,10 @@ const CompletenessWorkbench: React.FC<CompletenessWorkbenchProps> = ({
 
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         {[
-          { label: 'Queue', value: queue.length },
-          { label: 'Complete', value: completeItems.length },
-          { label: 'Pending', value: pendingItems.length },
-          { label: 'Deficient', value: deficientItems.length },
+          { label: 'Applications in Queue', value: queue.length },
+          { label: 'Ready for Reference', value: readyAppsCount },
+          { label: 'Checklist Items Pending', value: pendingItems.length },
+          { label: 'Returned / Deficient', value: deficientItems.length },
         ].map(item => (
           <div key={item.label} className="card">
             <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">{item.label}</p>
@@ -299,15 +330,15 @@ const CompletenessWorkbench: React.FC<CompletenessWorkbenchProps> = ({
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 { label: 'Folio', value: member?.folioNumber || 'Pending' },
-                { label: 'Member Type', value: app.memberType === 'fpc' ? 'FPC' : app.memberType.replace('_', ' ') },
+                { label: 'Member Type', value: app.memberType === 'fpc' ? 'FPC' : app.memberType.charAt(0).toUpperCase() + app.memberType.slice(1).replace('_', ' ') },
                 { label: 'Shares', value: `${app.sharesHeld} (${app.shareMode === 'physical' ? 'Physical' : 'Demat'})` },
-                { label: 'KYC Status', value: member?.kycStatus || '—', badge: true },
+                { label: 'KYC Status', value: checks['borrower_kyc'] === 'complete' ? (member?.kycStatus || '—') : 'KYC Pending Review', badge: true },
                 { label: 'Requested Amount', value: fmt(app.requestedAmount) },
-                { label: 'Loan Type', value: app.loanType === 'short_term' ? `Short-term · ${app.tenure} mo` : `Long-term · ${app.tenure} mo` },
+                { label: 'Loan Type', value: app.loanType === 'short_term' ? `Short-term · ${app.tenure} months` : `Long-term · ${app.tenure} months` },
                 { label: 'Purpose', value: app.purpose.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) },
                 { label: 'Land Area', value: app.landAreaAcres ? `${app.landAreaAcres} acres` : '—' },
                 { label: 'Nominee Ref', value: app.nomineeId },
-                { label: 'LO Reference', value: hasFormalLoanReference(app) ? app.officialReference || app.applicationNumber : 'Not generated' },
+                { label: 'Loan reference', value: hasFormalLoanReference(app) ? app.officialReference || app.applicationNumber : 'Not generated yet' },
                 { label: 'Mobile', value: member?.mobile || '—' },
                 { label: 'Email', value: member?.email || '—' },
               ].map(item => (
@@ -379,19 +410,21 @@ const CompletenessWorkbench: React.FC<CompletenessWorkbenchProps> = ({
                                   {data.docs.map(d => {
                                     const doc = appDocs.find(r => r.documentType === d.docType);
                                     const uploaded = doc ? DOC_UPLOADED_STATUSES.has(doc.status) : false;
+                                    const itemState = checks[item.id] || 'pending';
+                                    const isDeficient = itemState === 'deficient';
+                                    const colorClass = isDeficient
+                                      ? 'bg-red-50 border-red-200 text-red-700'
+                                      : uploaded
+                                        ? 'bg-green-50 border-green-200 text-green-800'
+                                        : 'bg-slate-50 border-slate-200 text-slate-600';
+                                    const Icon = isDeficient ? XCircle : (uploaded ? CheckCircle2 : FileText);
+                                    
                                     return (
                                       <div
                                         key={d.docType}
-                                        className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border ${
-                                          uploaded
-                                            ? 'bg-green-50 border-green-200 text-green-800'
-                                            : 'bg-red-50 border-red-200 text-red-700'
-                                        }`}
+                                        className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border ${colorClass}`}
                                       >
-                                        {uploaded
-                                          ? <CheckCircle2 size={11} className="text-green-500 flex-shrink-0" />
-                                          : <XCircle size={11} className="text-red-400 flex-shrink-0" />
-                                        }
+                                        <Icon size={11} className="flex-shrink-0" />
                                         <span className="font-medium">{d.label}</span>
                                         {doc && (
                                           <span className="text-[10px] uppercase font-semibold px-1 py-0.5 rounded bg-white/70 border border-current opacity-70">
@@ -513,28 +546,33 @@ const CompletenessWorkbench: React.FC<CompletenessWorkbenchProps> = ({
                   <h3 className="font-semibold text-slate-800">Reference number generation</h3>
                   <p className="text-xs text-slate-500 mt-0.5">Next sequential LO reference: <span className="font-semibold text-slate-700 num">{generatedReference}</span></p>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    disabled={!canAct || !allComplete || outcome !== null}
-                    onClick={() => setOutcome('reference_generated')}
-                    className="btn-primary flex items-center gap-2"
-                  >
-                    <ArrowRight size={14} /> Generate reference number
-                  </button>
-                  <button
-                    disabled={!canAct || !hasDeficiencies || outcome !== null}
-                    onClick={() => setOutcome('returned')}
-                    className="btn-secondary flex items-center gap-2"
-                  >
-                    <Send size={14} /> Return for deficiency
-                  </button>
-                  <button
-                    disabled={!canAct || !hasDeficiencies || outcome !== null}
-                    onClick={() => setOutcome('rejected')}
-                    className="btn-destructive flex items-center gap-2"
-                  >
-                    <XCircle size={14} /> Reject at completeness
-                  </button>
+                <div className="flex flex-col items-end gap-2">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <button
+                      disabled={!canAct || !allComplete || outcome !== null || hasDeficiencies}
+                      onClick={() => setOutcome('reference_generated')}
+                      className="btn-primary flex items-center gap-2"
+                    >
+                      <ArrowRight size={14} /> Generate reference number
+                    </button>
+                    <button
+                      disabled={!canAct || !hasDeficiencies || outcome !== null || !internalComment.trim()}
+                      onClick={() => setOutcome('returned')}
+                      className="btn-secondary flex items-center gap-2"
+                      title={!internalComment.trim() ? "Internal comment required" : ""}
+                    >
+                      <Send size={14} /> Return for deficiency
+                    </button>
+                    <button
+                      disabled={!canAct || outcome !== null || !internalComment.trim() || hasDeficiencies}
+                      onClick={() => setOutcome('rejected')}
+                      className="btn-destructive flex items-center gap-2"
+                      title={hasDeficiencies ? "Use Return for Deficiency for missing items" : !internalComment.trim() ? "Internal comment required" : ""}
+                    >
+                      <XCircle size={14} /> Recommend rejection
+                    </button>
+                  </div>
+                  {!allComplete && <span className="text-[10px] text-slate-400 font-medium">Complete all mandatory checks before generating the loan reference.</span>}
                 </div>
               </div>
 
@@ -569,10 +607,10 @@ const CompletenessWorkbench: React.FC<CompletenessWorkbenchProps> = ({
               {outcome === 'rejected' && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                   <p className="text-sm font-semibold text-red-800 flex items-center gap-2">
-                    <MessageSquare size={15} /> Rejection communication generated
+                    <MessageSquare size={15} /> Rejection recommendation forwarded
                   </p>
                   <p className="text-xs text-red-700 mt-2">
-                    Application status changed to Rejected at Completeness with selected missing items recorded as evidence. Formal LO reference has not been generated.
+                    Application routed to Credit Manager for final rejection approval. Formal LO reference has not been generated.
                   </p>
                 </div>
               )}

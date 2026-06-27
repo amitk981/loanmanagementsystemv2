@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import StatusBadge from '../../components/ui/StatusBadge';
 import AlertBanner from '../../components/ui/AlertBanner';
+import StageStepper from '../../components/ui/StageStepper';
 import LoanLimitCalculator from '../../components/loan/LoanLimitCalculator';
 import EligibilityChecklist from '../../components/loan/EligibilityChecklist';
 import { loanApplications as mockApplications, members } from '../../data/mockData';
@@ -290,52 +291,7 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
         </div>
       </div>
 
-      <div className="card">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {workflowSteps.map((item, i) => {
-            const isLocked = item.state === 'locked';
-            const isActive = item.state === 'active';
-            const isComplete = item.state === 'complete';
-            return (
-              <button
-                key={item.step}
-                type="button"
-                disabled={isLocked}
-                onClick={() => !isLocked && setAppraisalStep(item.step)}
-                className={`text-left rounded-lg border p-4 transition-colors ${
-                  isActive ? 'border-green-500 bg-green-50 shadow-sm' :
-                  isComplete ? 'border-green-200 bg-white' :
-                  isLocked ? 'border-slate-200 bg-slate-50 opacity-70 cursor-not-allowed' :
-                  'border-slate-200 bg-white hover:border-green-200 hover:bg-green-50'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className={`text-xs font-semibold ${isLocked ? 'text-slate-400' : 'text-green-700'}`}>
-                      {item.label}
-                    </div>
-                    <div className={`mt-1 font-bold ${isLocked ? 'text-slate-500' : 'text-slate-900'}`}>
-                      {item.title}
-                    </div>
-                  </div>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    isComplete ? 'bg-green-600 text-white' :
-                    isActive ? 'bg-green-100 text-green-700' :
-                    isLocked ? 'bg-slate-100 text-slate-400' : 'bg-amber-50 text-amber-600'
-                  }`}>
-                    {isComplete ? <CheckCircle2 size={16} /> : isLocked ? <Lock size={15} /> : i === 1 ? <FileText size={15} /> : i === 2 ? <Send size={15} /> : <BadgeCheck size={15} />}
-                  </div>
-                </div>
-                <div className="mt-3 text-sm text-slate-600">{item.description}</div>
-                <div className="mt-3 flex items-center justify-between gap-3 text-xs">
-                  <span className="text-slate-500">Owner: {item.owner}</span>
-                  <span className={`font-semibold ${isComplete ? 'text-green-700' : isLocked ? 'text-slate-400' : 'text-amber-700'}`}>{item.count}</span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+
 
       {appraisalQueue.length === 0 ? (
         <div className="card text-center py-16">
@@ -431,6 +387,23 @@ const AppraisalWorkbench: React.FC<AppraisalWorkbenchProps> = ({ onOpenApplicati
                 {app.isException && (
                   <AlertBanner type="exception" title="Exception case — requested amount exceeds eligible limit" message={app.exceptionReason || ''} />
                 )}
+
+                <div className="mt-4">
+                  <StageStepper 
+                    steps={workflowSteps.map(s => ({
+                      id: s.step,
+                      label: s.label,
+                      sublabel: s.title,
+                      state: s.state === 'complete' ? 'completed' :
+                             s.state === 'active' ? 'in_progress' :
+                             s.state === 'locked' ? 'blocked' : 'not_started'
+                    }))}
+                    onStepClick={(id) => {
+                      const step = workflowSteps.find(s => s.step === id);
+                      if (step && step.state !== 'locked') setAppraisalStep(id as any);
+                    }}
+                  />
+                </div>
               </div>
 
               {/* ── STEP 1: Verification (S16 + S17) ── */}

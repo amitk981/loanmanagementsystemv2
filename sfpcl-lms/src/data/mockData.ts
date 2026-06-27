@@ -182,8 +182,8 @@ export const loanApplications: LoanApplication[] = [
     sanctionDecision: 'pending', riskRating: 'low', tatDaysRemaining: 2,
   },
   {
-    id: 'app007', applicationNumber: 'LO00000046', applicationDate: '2026-06-16',
-    officialReference: 'LO00000046', intakeReference: 'LO00000046', source: 'borrower',
+    id: 'app007', applicationNumber: 'APP-INT-2026-000004', applicationDate: '2026-06-16',
+    intakeReference: 'APP-INT-2026-000004', source: 'borrower',
     memberId: 'm007', memberName: 'Nashik Grape Growers Coop', memberType: 'fpc',
     nomineeId: 'nom007', requestedAmount: 1200000, purpose: 'agriculture_activity',
     loanType: 'long_term', tenure: 36, sharesHeld: 5000, shareMode: 'demat',
