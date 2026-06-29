@@ -24,9 +24,7 @@ const MP00_Login: React.FC<MP00_LoginProps> = ({ onLogin, onNavigateToActivation
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center mb-6">
-          <div className="w-14 h-14 bg-green-600 rounded-xl flex items-center justify-center shadow-lg shadow-green-200">
-            <Leaf size={32} className="text-white" />
-          </div>
+          <img src="/logo.png" alt="Logo" className="w-16 h-16 object-contain" />
         </div>
         <h2 className="text-center text-2xl font-bold text-slate-900">Member Portal</h2>
         <p className="mt-2 text-center text-sm text-slate-600">Sahyadri Farmers Producer Company Limited</p>
