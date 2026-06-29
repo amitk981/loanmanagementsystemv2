@@ -82,9 +82,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate }) => {
     <aside className={`flex flex-col bg-white border-r border-slate-200 transition-all duration-200 ${collapsed ? 'w-16' : 'w-60'} flex-shrink-0 h-full`}>
       {/* Logo */}
       <div className="flex items-center h-16 border-b border-slate-200 px-4 gap-3 flex-shrink-0">
-        <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center flex-shrink-0">
-          <Sprout size={18} className="text-white" />
-        </div>
+        <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain flex-shrink-0" />
         {!collapsed && (
           <div className="min-w-0">
             <div className="text-sm font-bold text-slate-900 truncate">SFPCL</div>

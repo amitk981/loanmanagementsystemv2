@@ -41,9 +41,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onOpenMemberPortal }
       {/* Left panel */}
       <div className="hidden lg:flex flex-col justify-between w-1/2 bg-green-700 p-12 text-white">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-            <Sprout size={22} className="text-white" />
-          </div>
+          <img src="/logo.png" alt="Logo" className="w-12 h-12 object-contain bg-white rounded-xl p-1" />
           <div>
             <div className="text-lg font-bold leading-tight">SFPCL</div>
             <div className="text-green-200 text-sm">Credit Management System</div>
@@ -80,9 +78,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onOpenMemberPortal }
         <div className="max-w-md w-full mx-auto">
           {/* Mobile logo */}
           <div className="flex items-center gap-3 mb-8 lg:hidden">
-            <div className="w-9 h-9 bg-green-600 rounded-xl flex items-center justify-center">
-              <Sprout size={20} className="text-white" />
-            </div>
+            <img src="/logo.png" alt="Logo" className="w-10 h-10 object-contain" />
             <div>
               <div className="font-bold text-slate-900">SFPCL Credit Management</div>
             </div>
