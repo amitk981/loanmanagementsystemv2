@@ -412,7 +412,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ onNavigate }) => {
             {filtered.map(task => (
               <div
                 key={task.id}
-                className={`px-6 py-4 min-w-[1290px] grid grid-cols-[4px_160px_minmax(390px,1fr)_360px_100px_96px_118px] items-center gap-4 hover:bg-slate-50 transition-colors ${
+                className={`px-6 py-4 grid grid-cols-[4px_160px_1fr_220px_100px_96px_118px] items-center gap-4 hover:bg-slate-50 transition-colors ${
                   task.priority === 'critical' ? 'bg-red-50/30' : ''
                 }`}
               >

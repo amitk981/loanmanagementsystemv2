@@ -168,37 +168,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin, onOpenMemberPortal }
             </button>
           </form>
 
-          <div className="mt-8">
-            <div className="text-xs text-slate-400 text-center mb-4">— Quick demo login as —</div>
-            <div className="grid grid-cols-2 gap-2">
-              {ALL_ROLES.filter(r => r !== 'borrower').slice(0, 6).map(role => (
-                <button
-                  key={role}
-                  onClick={() => handleDemoLogin(role)}
-                  className="text-xs px-3 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-green-50 hover:border-green-200 hover:text-green-700 transition-colors text-left"
-                >
-                  {ROLE_LABELS[role]}
-                </button>
-              ))}
-            </div>
-            <div className="grid grid-cols-2 gap-2 mt-2">
-              {ALL_ROLES.filter(r => r !== 'borrower').slice(6).map(role => (
-                <button
-                  key={role}
-                  onClick={() => handleDemoLogin(role)}
-                  className="text-xs px-3 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-green-50 hover:border-green-200 hover:text-green-700 transition-colors text-left"
-                >
-                  {ROLE_LABELS[role]}
-                </button>
-              ))}
-              <button
-                onClick={() => handleDemoLogin('borrower')}
-                className="text-xs px-3 py-2 border border-amber-200 rounded-lg text-amber-700 hover:bg-amber-50 transition-colors text-left"
-              >
-                Borrower / Farmer
-              </button>
-            </div>
-          </div>
+
 
           <p className="mt-8 text-center text-xs text-slate-400">
             Forgot password? Contact your system administrator.
